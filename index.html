@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Somador de Comprovantes</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2563eb">
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: #f1f5f9; color: #1e293b; padding: 16px; max-width: 500px; margin: 0 auto; }
+    h1 { font-size: 1.25rem; text-align: center; margin-bottom: 16px; color: #0f172a; }
+    
+    .card { background: white; padding: 16px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; }
+    .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; text-align: center; display: inline-block; }
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-secondary { background: #e2e8f0; color: #334155; margin-top: 8px; }
+    input[type="file"] { display: none; }
+
+    .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+    .summary-box { background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; }
+    .summary-box span { display: block; font-size: 0.8rem; color: #64748b; }
+    .summary-box strong { font-size: 1.1rem; color: #0f172a; }
+
+    .total-box { background: #dbeafe; border: 1px solid #bfdbfe; padding: 12px; border-radius: 8px; text-align: center; margin-top: 12px; }
+    .total-box span { font-size: 0.9rem; color: #1e40af; }
+    .total-box strong { display: block; font-size: 1.6rem; color: #1e3a8a; }
+
+    .list { list-style: none; margin-top: 12px; }
+    .list-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+    .status { text-align: center; color: #64748b; font-size: 0.9rem; margin: 10px 0; display: none; }
+  </style>
+</head>
+<body>
+
+  <h1>🧾 Leitor de Comprovantes</h1>
+
+  <div class="card">
+    <label class="btn btn-primary">
+      📷 Escanear Comprovante
+      <input type="file" accept="image/*" capture="environment" id="cameraInput" onchange="processarImagem(this)">
+    </label>
+    <div id="status" class="status">Processando imagem... aguarde.</div>
+  </div>
+
+  <div class="card">
+    <h2>Resumo do Caixa</h2>
+    <div class="summary">
+      <div class="summary-box"><span>Débito</span><strong id="totalDebito">R$ 0,00</strong></div>
+      <div class="summary-box"><span>Crédito</span><strong id="totalCredito">R$ 0,00</strong></div>
+      <div class="summary-box"><span>Pix</span><strong id="totalPix">R$ 0,00</strong></div>
+      <div class="summary-box"><span>Voucher/VR</span><strong id="totalVoucher">R$ 0,00</strong></div>
+    </div>
+    <div class="total-box">
+      <span>TOTAL GERAL</span>
+      <strong id="totalGeral">R$ 0,00</strong>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Lançamentos</h2>
+    <ul id="listaLancamentos" class="list"></ul>
+    <button class="btn btn-secondary" onclick="limparTudo()">Zerar Caixa</button>
+  </div>
+
+  <script>
+    let lancamentos = JSON.parse(localStorage.getItem('lancamentos') || '[]');
+
+    async function processarImagem(input) {
+      if (!input.files || !input.files[0]) return;
+      const status = document.getElementById('status');
+      status.style.display = 'block';
+
+      try {
+        const worker = await Tesseract.createWorker('por');
+        const ret = await worker.recognize(input.files[0]);
+        await worker.terminate();
+
+        const texto = ret.data.text.toUpperCase();
+        extrairDados(texto);
+      } catch (err) {
+        alert('Erro ao ler a imagem. Tente novamente.');
+      } finally {
+        status.style.display = 'none';
+        input.value = '';
+      }
+    }
+
+    function extrairDados(texto) {
+      // Identificar tipo de pagamento
+      let tipo = 'CRÉDITO';
+      if (texto.includes('DEBITO') || texto.includes('DÉBITO') || texto.includes('DEB')) tipo = 'DÉBITO';
+      else if (texto.includes('PIX')) tipo = 'PIX';
+      else if (texto.includes('VOUCHER') || texto.includes('VR') || texto.includes('VALE') || texto.includes('ALIMENTACAO')) tipo = 'VOUCHER';
+
+      // Extrair valor monetário
+      const regexValor = /(?:VALOR|TOTAL|R\$)\s*:?\s*R?\$?\s*([\d\.\,]+)/gi;
+      let match = regexValor.exec(texto);
+      let valor = 0;
+
+      if (match) {
+        let valStr = match[1].replace('.', '').replace(',', '.');
+        valor = parseFloat(valStr) || 0;
+      } else {
+        const valoresGerais = texto.match(/(\d+[\,\.]\d{2})/g);
+        if (valoresGerais) {
+          let valStr = valoresGerais[valoresGerais.length - 1].replace('.', '').replace(',', '.');
+          valor = parseFloat(valStr) || 0;
+        }
+      }
+
+      if (valor > 0) {
+        lancamentos.push({ tipo, valor, data: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
+        salvarEAtualizar();
+      } else {
+        alert('Não foi possível identificar o valor no comprovante.');
+      }
+    }
+
+    function salvarEAtualizar() {
+      localStorage.setItem('lancamentos', JSON.stringify(lancamentos));
+      atualizarTela();
+    }
+
+    function atualizarTela() {
+      const lista = document.getElementById('listaLancamentos');
+      lista.innerHTML = '';
+
+      let debito = 0, credito = 0, pix = 0, voucher = 0;
+
+      lancamentos.forEach((item, index) => {
+        if (item.tipo === 'DÉBITO') debito += item.valor;
+        if (item.tipo === 'CRÉDITO') credito += item.valor;
+        if (item.tipo === 'PIX') pix += item.valor;
+        if (item.tipo === 'VOUCHER') voucher += item.valor;
+
+        const li = document.createElement('li');
+        li.className = 'list-item';
+        li.innerHTML = `
+          <div><strong>${item.tipo}</strong> <small>(${item.data})</small></div>
+          <div>R$ ${item.valor.toFixed(2).replace('.', ',')}</div>
+        `;
+        lista.appendChild(li);
+      });
+
+      document.getElementById('totalDebito').innerText = `R$ ${debito.toFixed(2).replace('.', ',')}`;
+      document.getElementById('totalCredito').innerText = `R$ ${credito.toFixed(2).replace('.', ',')}`;
+      document.getElementById('totalPix').innerText = `R$ ${pix.toFixed(2).replace('.', ',')}`;
+      document.getElementById('totalVoucher').innerText = `R$ ${voucher.toFixed(2).replace('.', ',')}`;
+      
+      const totalGeral = debito + credito + pix + voucher;
+      document.getElementById('totalGeral').innerText = `R$ ${totalGeral.toFixed(2).replace('.', ',')}`;
+    }
+
+    function limparTudo() {
+      if (confirm('Deseja zerar os lançamentos do caixa?')) {
+        lancamentos = [];
+        salvarEAtualizar();
+      }
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+
+    atualizarTela();
+  </script>
+</body>
+</html>
