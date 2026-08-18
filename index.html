@@ -1,4 +1,4 @@
-65<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -9,7 +9,13 @@
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-    body { background: #f1f5f9; color: #1e293b; padding: 16px; max-width: 500px; margin: 0 auto; -webkit-tap-highlight-color: transparent; }
+    body { background: #f1f5f9; color: #1e293b; padding: 16px; max-width: 500px; margin: 0 auto; -webkit-tap-highlight-color: transparent; padding-top: 10px; }
+    
+    /* Botão de Forçar Instalação - QrPix Style */
+    #installArea { display: none; background: #fee2e2; border: 1.5px solid #ef4444; padding: 12px; border-radius: 12px; margin-bottom: 16px; text-align: center; }
+    #installArea p { color: #991b1b; font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; }
+    .btn-install { background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.9rem; }
+
     h1 { font-size: 1.3rem; text-align: center; margin-bottom: 16px; color: #0f172a; display: flex; align-items: center; justify-content: center; gap: 8px; }
     
     .card { background: white; padding: 16px; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); margin-bottom: 16px; }
@@ -46,7 +52,6 @@
     
     .status { text-align: center; color: #2563eb; font-weight: 600; font-size: 0.88rem; margin-top: 10px; display: none; }
 
-    /* Modal Lançamento Manual */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
     .modal { background: white; padding: 20px; border-radius: 14px; width: 100%; max-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
     .modal h3 { font-size: 1.1rem; margin-bottom: 12px; color: #0f172a; }
@@ -59,6 +64,12 @@
 </head>
 <body>
 
+  <!-- Área de Instalação Forçada -->
+  <div id="installArea">
+    <p>⚡ Instale o ReciboBox para usar offline!</p>
+    <button class="btn-install" id="btnInstall">Instalar ReciboBox</button>
+  </div>
+
   <h1>🧾 ReciboBox</h1>
 
   <div class="card">
@@ -69,7 +80,7 @@
       </label>
       <button class="btn btn-outline" onclick="abrirModalManual()">➕ Manual</button>
     </div>
-    <div id="status" class="status">⚡ Processando e Lendo comprovante...</div>
+    <div id="status" class="status">⚡ Processando e Lendo...</div>
   </div>
 
   <div class="card">
@@ -95,7 +106,6 @@
     <button class="btn btn-secondary" onclick="limparTudo()">Zerar Caixa</button>
   </div>
 
-  <!-- Modal Manual com Máscara de Moeda -->
   <div class="modal-overlay" id="modalManual">
     <div class="modal">
       <h3>Inserir Lançamento Manual</h3>
@@ -122,6 +132,43 @@
   <canvas id="canvasAux" style="display:none;"></canvas>
 
   <script>
+    // --- Lógica de Instalação Forçada (estilo QrPix) ---
+    let deferredPrompt;
+    const installArea = document.getElementById('installArea');
+    const btnInstall = document.getElementById('btnInstall');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Impede o Chrome de mostrar o prompt automático
+      e.preventDefault();
+      // Guarda o evento para usar depois
+      deferredPrompt = e;
+      // Mostra a nossa área de instalação personalizada
+      installArea.style.display = 'block';
+    });
+
+    btnInstall.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        // Mostra o prompt de instalação do navegador
+        deferredPrompt.prompt();
+        // Espera a resposta do usuário
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          console.log('Usuário aceitou a instalação');
+        }
+        // Limpa o evento, só pode ser usado uma vez
+        deferredPrompt = null;
+        // Esconde a área de instalação
+        installArea.style.display = 'none';
+      }
+    });
+
+    // Se o app já estiver instalado, esconde a área
+    window.addEventListener('appinstalled', (e) => {
+      console.log('ReciboBox instalado com sucesso!');
+      installArea.style.display = 'none';
+    });
+    // --------------------------------------------------
+
     let lancamentos = JSON.parse(localStorage.getItem('lancamentos') || '[]');
 
     function aplicarMascaraMoeda(input) {
@@ -183,7 +230,6 @@
         const imagemTratada = await otimizarImagemParaOCR(input.files[0]);
         const worker = await Tesseract.createWorker('por');
         
-        // Configurações otimizadas para leitura de números e cupom
         await worker.setParameters({
           tessedit_char_whitelist: '0123456789R$,.DEBITOCREDITOPIXVOUCHERVALEREFEICAOALIMENTACAO'
         });
@@ -201,7 +247,6 @@
       }
     }
 
-    // Otimização de imagem com ajuste suave de contraste para não apagar letras térmicas
     function otimizarImagemParaOCR(file) {
       return new Promise((resolve) => {
         const img = new Image();
@@ -209,7 +254,6 @@
           const canvas = document.getElementById('canvasAux');
           const ctx = canvas.getContext('2d');
           
-          // Redimensiona mantendo proporção para acelerar o leitor
           const maxDim = 1200;
           let w = img.width;
           let h = img.height;
@@ -231,10 +275,8 @@
           const imgData = ctx.getImageData(0, 0, w, h);
           const data = imgData.data;
 
-          // Escala de cinza e realce moderado de contraste
           for (let i = 0; i < data.length; i += 4) {
             let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-            // Aplica um pequeno contraste
             gray = ((gray - 128) * 1.3) + 128;
             gray = Math.min(255, Math.max(0, gray));
 
@@ -260,7 +302,6 @@
         tipo = 'VOUCHER';
       }
 
-      // Regex para capturar valores com vírgula ou ponto decimal
       const regexValores = /(\d+[\,\.]\d{2})/g;
       let matches = [];
       let match;
@@ -272,7 +313,6 @@
       let valorEncontrado = 0;
 
       if (matches.length > 0) {
-        // Pega o último valor numérico identificado no papel (onde costuma ficar o Total)
         let ultValorStr = matches[matches.length - 1];
         ultValorStr = ultValorStr.replace('.', ',');
         const partes = ultValorStr.split(',');
@@ -288,7 +328,7 @@
         });
         salvarEAtualizar();
       } else {
-        alert('Não conseguimos ler o valor no papel.\n\nDicas para tirar a foto:\n1. Aproxime a câmera do valor final.\n2. Evite sombras sobre o comprovante.\n3. Se o papel estiver rasurado, use o botão "+ Manual".');
+        alert('Não conseguimos ler o valor.\n\nDicas: Foco no TOTAL final e boa luz.');
       }
     }
 
