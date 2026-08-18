@@ -1,6 +1,6 @@
 {
-  "name": "Leitor de Comprovantes",
-  "short_name": "Comprovantes",
+  "name": "ReciboBox - Somador de Comprovantes",
+  "short_name": "ReciboBox",
   "description": "Somador automático de comprovantes de cartão e Pix",
   "start_url": "./index.html",
   "scope": "./",
