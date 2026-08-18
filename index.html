@@ -2,34 +2,50 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Somador de Comprovantes</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Leitor de Comprovantes</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2563eb">
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-    body { background: #f1f5f9; color: #1e293b; padding: 16px; max-width: 500px; margin: 0 auto; }
-    h1 { font-size: 1.25rem; text-align: center; margin-bottom: 16px; color: #0f172a; }
+    body { background: #f1f5f9; color: #1e293b; padding: 16px; max-width: 500px; margin: 0 auto; -webkit-tap-highlight-color: transparent; }
+    h1 { font-size: 1.3rem; text-align: center; margin-bottom: 16px; color: #0f172a; display: flex; align-items: center; justify-content: center; gap: 8px; }
     
-    .card { background: white; padding: 16px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; }
-    .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; text-align: center; display: inline-block; }
+    .card { background: white; padding: 16px; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); margin-bottom: 16px; }
+    
+    .actions-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
+    
+    .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 0.98rem; font-weight: 700; cursor: pointer; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
     .btn-primary { background: #2563eb; color: white; }
-    .btn-secondary { background: #e2e8f0; color: #334155; margin-top: 8px; }
+    .btn-outline { background: #f8fafc; color: #2563eb; border: 1.5px solid #cbd5e1; }
+    .btn-secondary { background: #e2e8f0; color: #334155; margin-top: 12px; }
+    .btn-danger { background: #fee2e2; color: #991b1b; padding: 4px 8px; font-size: 0.8rem; border-radius: 6px; border: none; cursor: pointer; }
+    
     input[type="file"] { display: none; }
 
-    .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
-    .summary-box { background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; }
-    .summary-box span { display: block; font-size: 0.8rem; color: #64748b; }
-    .summary-box strong { font-size: 1.1rem; color: #0f172a; }
+    .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .summary-box { background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0; }
+    .summary-box span { display: block; font-size: 0.82rem; color: #64748b; font-weight: 500; }
+    .summary-box strong { font-size: 1.15rem; color: #0f172a; display: block; margin-top: 2px; }
 
-    .total-box { background: #dbeafe; border: 1px solid #bfdbfe; padding: 12px; border-radius: 8px; text-align: center; margin-top: 12px; }
-    .total-box span { font-size: 0.9rem; color: #1e40af; }
-    .total-box strong { display: block; font-size: 1.6rem; color: #1e3a8a; }
+    .total-box { background: #eff6ff; border: 1.5px solid #bfdbfe; padding: 14px; border-radius: 10px; text-align: center; margin-top: 12px; }
+    .total-box span { font-size: 0.85rem; color: #1e40af; font-weight: 700; letter-spacing: 0.5px; }
+    .total-box strong { display: block; font-size: 1.8rem; color: #1e3a8a; margin-top: 2px; }
 
-    .list { list-style: none; margin-top: 12px; }
+    .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .list-header h2 { font-size: 1.1rem; color: #0f172a; }
+    .badge { background: #e2e8f0; color: #334155; font-size: 0.78rem; padding: 3px 8px; border-radius: 12px; font-weight: 600; }
+
+    .list { list-style: none; max-height: 260px; overflow-y: auto; }
     .list-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
-    .status { text-align: center; color: #64748b; font-size: 0.9rem; margin: 10px 0; display: none; }
+    .item-info { display: flex; flex-direction: column; }
+    .item-info strong { font-size: 0.95rem; color: #1e293b; }
+    .item-info small { font-size: 0.75rem; color: #94a3b8; }
+    .item-actions { display: flex; align-items: center; gap: 10px; }
+    .item-actions strong { font-size: 0.98rem; color: #0f172a; }
+    
+    .status { text-align: center; color: #2563eb; font-weight: 600; font-size: 0.88rem; margin-top: 10px; display: none; }
   </style>
 </head>
 <body>
@@ -37,15 +53,18 @@
   <h1>🧾 Leitor de Comprovantes</h1>
 
   <div class="card">
-    <label class="btn btn-primary">
-      📷 Escanear Comprovante
-      <input type="file" accept="image/*" capture="environment" id="cameraInput" onchange="processarImagem(this)">
-    </label>
-    <div id="status" class="status">Processando imagem... aguarde.</div>
+    <div class="actions-grid">
+      <label class="btn btn-primary">
+        📷 Escanear Comprovante
+        <input type="file" accept="image/*" capture="environment" id="cameraInput" onchange="processarImagem(this)">
+      </label>
+      <button class="btn btn-outline" onclick="adicionarManual()">➕ Manual</button>
+    </div>
+    <div id="status" class="status">⚡ Processando e Lendo comprovante...</div>
   </div>
 
   <div class="card">
-    <h2>Resumo do Caixa</h2>
+    <h2 style="font-size: 1.1rem; color: #0f172a;">Resumo do Caixa</h2>
     <div class="summary">
       <div class="summary-box"><span>Débito</span><strong id="totalDebito">R$ 0,00</strong></div>
       <div class="summary-box"><span>Crédito</span><strong id="totalCredito">R$ 0,00</strong></div>
@@ -59,10 +78,15 @@
   </div>
 
   <div class="card">
-    <h2>Lançamentos</h2>
+    <div class="list-header">
+      <h2>Lançamentos</h2>
+      <span class="badge" id="qtdItens">0 itens</span>
+    </div>
     <ul id="listaLancamentos" class="list"></ul>
     <button class="btn btn-secondary" onclick="limparTudo()">Zerar Caixa</button>
   </div>
+
+  <canvas id="canvasAux" style="display:none;"></canvas>
 
   <script>
     let lancamentos = JSON.parse(localStorage.getItem('lancamentos') || '[]');
@@ -73,49 +97,127 @@
       status.style.display = 'block';
 
       try {
+        // Tratar Imagem (Aumentar Contraste / Preto e Branco)
+        const imagemTratada = await otimizarImagemParaOCR(input.files[0]);
+
         const worker = await Tesseract.createWorker('por');
-        const ret = await worker.recognize(input.files[0]);
+        const ret = await worker.recognize(imagemTratada);
         await worker.terminate();
 
         const texto = ret.data.text.toUpperCase();
+        console.log("Texto Lido:", texto);
         extrairDados(texto);
       } catch (err) {
-        alert('Erro ao ler a imagem. Tente novamente.');
+        console.error(err);
+        alert('Erro ao processar imagem. Use a opção "+ Manual" se necessário.');
       } finally {
         status.style.display = 'none';
         input.value = '';
       }
     }
 
+    // Função de Pré-processamento de Imagem para OCR
+    function otimizarImagemParaOCR(file) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.getElementById('canvasAux');
+          const ctx = canvas.getContext('2d');
+          
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imgData.data;
+
+          // Converter para escala de cinza e aplicar limiar (threshold)
+          for (let i = 0; i < data.length; i += 4) {
+            let avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+            let val = avg > 140 ? 255 : 0; // Se for claro vira branco, escuro vira preto
+            data[i] = val;
+            data[i + 1] = val;
+            data[i + 2] = val;
+          }
+
+          ctx.putImageData(imgData, 0, 0);
+          resolve(canvas.toDataURL('image/jpeg', 0.9));
+        };
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
     function extrairDados(texto) {
-      // Identificar tipo de pagamento
       let tipo = 'CRÉDITO';
-      if (texto.includes('DEBITO') || texto.includes('DÉBITO') || texto.includes('DEB')) tipo = 'DÉBITO';
-      else if (texto.includes('PIX')) tipo = 'PIX';
-      else if (texto.includes('VOUCHER') || texto.includes('VR') || texto.includes('VALE') || texto.includes('ALIMENTACAO')) tipo = 'VOUCHER';
-
-      // Extrair valor monetário
-      const regexValor = /(?:VALOR|TOTAL|R\$)\s*:?\s*R?\$?\s*([\d\.\,]+)/gi;
-      let match = regexValor.exec(texto);
-      let valor = 0;
-
-      if (match) {
-        let valStr = match[1].replace('.', '').replace(',', '.');
-        valor = parseFloat(valStr) || 0;
-      } else {
-        const valoresGerais = texto.match(/(\d+[\,\.]\d{2})/g);
-        if (valoresGerais) {
-          let valStr = valoresGerais[valoresGerais.length - 1].replace('.', '').replace(',', '.');
-          valor = parseFloat(valStr) || 0;
-        }
+      if (texto.includes('DEBITO') || texto.includes('DÉBITO') || texto.includes('DEB')) {
+        tipo = 'DÉBITO';
+      } else if (texto.includes('PIX')) {
+        tipo = 'PIX';
+      } else if (texto.includes('VOUCHER') || texto.includes('VR') || texto.includes('VALE') || texto.includes('ALIMENT') || texto.includes('REFEIC')) {
+        tipo = 'VOUCHER';
       }
 
-      if (valor > 0) {
-        lancamentos.push({ tipo, valor, data: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
+      // Procura padrões de moeda com R$, $ ou simplesmente padrões de números decimais (ex: 25,00 / 150.00 / 12,50)
+      const regexValores = /(?:R\$\s*|VALOR\s*|TOTAL\s*|VALOR:\s*)?(\d+[\,\.]\d{2})/gi;
+      let matches = [];
+      let match;
+      
+      while ((match = regexValores.exec(texto)) !== null) {
+        matches.push(match[1]);
+      }
+
+      let valorEncontrado = 0;
+
+      if (matches.length > 0) {
+        // Pega o último número decimal lido (que geralmente é o TOTAL final do comprovante)
+        let ultValorStr = matches[matches.length - 1];
+        ultValorStr = ultValorStr.replace('.', ',');
+        const partes = ultValorStr.split(',');
+        valorEncontrado = parseFloat(partes[0] + '.' + partes[1]);
+      }
+
+      if (valorEncontrado > 0) {
+        lancamentos.push({ 
+          id: Date.now(),
+          tipo, 
+          valor: valorEncontrado, 
+          hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) 
+        });
         salvarEAtualizar();
       } else {
-        alert('Não foi possível identificar o valor no comprovante.');
+        alert('Não foi possível identificar o valor no papel.\n\nPor favor, insira usando o botão "+ Manual".');
       }
+    }
+
+    function adicionarManual() {
+      const valorInput = prompt('Informe o valor (Ex: 25,50):');
+      if (!valorInput) return;
+
+      const valorFormatado = parseFloat(valorInput.replace('.', '').replace(',', '.'));
+      if (isNaN(valorFormatado) || valorFormatado <= 0) {
+        alert('Valor inválido!');
+        return;
+      }
+
+      const tipoOpcao = prompt('Digite o número do Tipo:\n1 - Débito\n2 - Crédito\n3 - Pix\n4 - Voucher/VR', '2');
+      let tipo = 'CRÉDITO';
+      if (tipoOpcao === '1') tipo = 'DÉBITO';
+      if (tipoOpcao === '3') tipo = 'PIX';
+      if (tipoOpcao === '4') tipo = 'VOUCHER';
+
+      lancamentos.push({
+        id: Date.now(),
+        tipo,
+        valor: valorFormatado,
+        hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+      });
+
+      salvarEAtualizar();
+    }
+
+    function removerItem(id) {
+      lancamentos = lancamentos.filter(item => item.id !== id);
+      salvarEAtualizar();
     }
 
     function salvarEAtualizar() {
@@ -129,7 +231,7 @@
 
       let debito = 0, credito = 0, pix = 0, voucher = 0;
 
-      lancamentos.forEach((item, index) => {
+      lancamentos.forEach((item) => {
         if (item.tipo === 'DÉBITO') debito += item.valor;
         if (item.tipo === 'CRÉDITO') credito += item.valor;
         if (item.tipo === 'PIX') pix += item.valor;
@@ -138,8 +240,14 @@
         const li = document.createElement('li');
         li.className = 'list-item';
         li.innerHTML = `
-          <div><strong>${item.tipo}</strong> <small>(${item.data})</small></div>
-          <div>R$ ${item.valor.toFixed(2).replace('.', ',')}</div>
+          <div class="item-info">
+            <strong>${item.tipo}</strong>
+            <small>${item.hora}</small>
+          </div>
+          <div class="item-actions">
+            <strong>R$ ${item.valor.toFixed(2).replace('.', ',')}</strong>
+            <button class="btn-danger" onclick="removerItem(${item.id})">✕</button>
+          </div>
         `;
         lista.appendChild(li);
       });
@@ -151,10 +259,12 @@
       
       const totalGeral = debito + credito + pix + voucher;
       document.getElementById('totalGeral').innerText = `R$ ${totalGeral.toFixed(2).replace('.', ',')}`;
+      document.getElementById('qtdItens').innerText = `${lancamentos.length} ${lancamentos.length === 1 ? 'item' : 'itens'}`;
     }
 
     function limparTudo() {
-      if (confirm('Deseja zerar os lançamentos do caixa?')) {
+      if (lancamentos.length === 0) return;
+      if (confirm('Deseja apagar todos os lançamentos do caixa?')) {
         lancamentos = [];
         salvarEAtualizar();
       }
@@ -168,3 +278,4 @@
   </script>
 </body>
 </html>
+      
