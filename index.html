@@ -46,7 +46,7 @@
     
     .status { text-align: center; color: #2563eb; font-weight: 600; font-size: 0.88rem; margin-top: 10px; display: none; }
 
-    /* Modal para lançamento manual com máscara */
+    /* Modal Lançamento Manual */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
     .modal { background: white; padding: 20px; border-radius: 14px; width: 100%; max-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
     .modal h3 { font-size: 1.1rem; margin-bottom: 12px; color: #0f172a; }
@@ -124,7 +124,6 @@
   <script>
     let lancamentos = JSON.parse(localStorage.getItem('lancamentos') || '[]');
 
-    // Máscara Automática de Moeda (ex: 1000 -> R$ 10,00)
     function aplicarMascaraMoeda(input) {
       let valor = input.value.replace(/\D/g, '');
       if (valor === '') {
@@ -154,7 +153,6 @@
         return;
       }
 
-      // Converte a string "R$ 1.250,50" para float 1250.50
       const valorLimpo = valorStr.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
       const valorNum = parseFloat(valorLimpo);
 
@@ -184,19 +182,26 @@
       try {
         const imagemTratada = await otimizarImagemParaOCR(input.files[0]);
         const worker = await Tesseract.createWorker('por');
+        
+        // Configurações otimizadas para leitura de números e cupom
+        await worker.setParameters({
+          tessedit_char_whitelist: '0123456789R$,.DEBITOCREDITOPIXVOUCHERVALEREFEICAOALIMENTACAO'
+        });
+
         const ret = await worker.recognize(imagemTratada);
         await worker.terminate();
 
         const texto = ret.data.text.toUpperCase();
         extrairDados(texto);
       } catch (err) {
-        alert('Erro ao processar imagem. Use a opção "+ Manual" se necessário.');
+        alert('Erro no processamento. Tente tirar uma foto mais aproximada ou use "+ Manual".');
       } finally {
         status.style.display = 'none';
         input.value = '';
       }
     }
 
+    // Otimização de imagem com ajuste suave de contraste para não apagar letras térmicas
     function otimizarImagemParaOCR(file) {
       return new Promise((resolve) => {
         const img = new Image();
@@ -204,23 +209,42 @@
           const canvas = document.getElementById('canvasAux');
           const ctx = canvas.getContext('2d');
           
-          canvas.width = img.width;
-          canvas.height = img.height;
-          ctx.drawImage(img, 0, 0);
+          // Redimensiona mantendo proporção para acelerar o leitor
+          const maxDim = 1200;
+          let w = img.width;
+          let h = img.height;
 
-          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+
+          canvas.width = w;
+          canvas.height = h;
+          ctx.drawImage(img, 0, 0, w, h);
+
+          const imgData = ctx.getImageData(0, 0, w, h);
           const data = imgData.data;
 
+          // Escala de cinza e realce moderado de contraste
           for (let i = 0; i < data.length; i += 4) {
-            let avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-            let val = avg > 140 ? 255 : 0;
-            data[i] = val;
-            data[i + 1] = val;
-            data[i + 2] = val;
+            let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+            // Aplica um pequeno contraste
+            gray = ((gray - 128) * 1.3) + 128;
+            gray = Math.min(255, Math.max(0, gray));
+
+            data[i] = gray;
+            data[i + 1] = gray;
+            data[i + 2] = gray;
           }
 
           ctx.putImageData(imgData, 0, 0);
-          resolve(canvas.toDataURL('image/jpeg', 0.9));
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
         };
         img.src = URL.createObjectURL(file);
       });
@@ -236,10 +260,11 @@
         tipo = 'VOUCHER';
       }
 
-      const regexValores = /(?:R\$\s*|VALOR\s*|TOTAL\s*|VALOR:\s*)?(\d+[\,\.]\d{2})/gi;
+      // Regex para capturar valores com vírgula ou ponto decimal
+      const regexValores = /(\d+[\,\.]\d{2})/g;
       let matches = [];
       let match;
-      
+
       while ((match = regexValores.exec(texto)) !== null) {
         matches.push(match[1]);
       }
@@ -247,10 +272,11 @@
       let valorEncontrado = 0;
 
       if (matches.length > 0) {
+        // Pega o último valor numérico identificado no papel (onde costuma ficar o Total)
         let ultValorStr = matches[matches.length - 1];
         ultValorStr = ultValorStr.replace('.', ',');
         const partes = ultValorStr.split(',');
-        valorEncontrado = parseFloat(partes[0] + '.' + partes[1]);
+        valorEncontrado = parseFloat(partes[0] + '.' + partes[partes.length - 1]);
       }
 
       if (valorEncontrado > 0) {
@@ -262,7 +288,7 @@
         });
         salvarEAtualizar();
       } else {
-        alert('Não foi possível identificar o valor no papel.\n\nPor favor, insira usando o botão "+ Manual".');
+        alert('Não conseguimos ler o valor no papel.\n\nDicas para tirar a foto:\n1. Aproxime a câmera do valor final.\n2. Evite sombras sobre o comprovante.\n3. Se o papel estiver rasurado, use o botão "+ Manual".');
       }
     }
 
@@ -329,4 +355,3 @@
   </script>
 </body>
 </html>
-            
