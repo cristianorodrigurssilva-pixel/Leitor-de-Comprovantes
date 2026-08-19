@@ -3,47 +3,46 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Leitor de Comprovantes</title>
+  <title>ReciboBox - Leitor de Comprovantes</title>
   <style>
     * {
       box-sizing: border-box;
-    }
-
-    :root {
-      --verde-esmeralda: #059669;
-      --azul-grafite: #0F172A;
-      --cinza-gelo: #F0F4F8;
+      margin: 0;
+      padding: 0;
     }
 
     body {
       font-family: system-ui, -apple-system, sans-serif;
-      background-color: var(--cinza-gelo);
-      color: var(--azul-grafite);
-      margin: 0;
-      padding: 20px;
+      background-color: #F0F4F8;
+      color: #0F172A;
       display: flex;
-      flex-direction: column;
-      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      min-height: 100vh;
     }
 
     .card {
       background: #ffffff;
       padding: 24px;
       border-radius: 16px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
       width: 100%;
-      max-width: 400px;
+      max-width: 380px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
     h1 {
       font-size: 1.25rem;
-      margin-top: 0;
-      color: var(--azul-grafite);
+      font-weight: 700;
+      color: #0F172A;
+      margin-bottom: 20px;
       text-align: center;
     }
 
     .btn-primary {
-      background-color: var(--verde-esmeralda);
+      background-color: #059669;
       color: #ffffff;
       border: none;
       padding: 14px 16px;
@@ -52,25 +51,21 @@
       border-radius: 8px;
       width: 100%;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      margin-top: 10px;
       text-align: center;
+      display: block;
     }
 
     .btn-secondary {
-      background: transparent;
-      color: var(--azul-grafite);
-      border: 1px solid var(--azul-grafite);
-      padding: 10px 12px;
-      font-size: 0.85rem;
-      border-radius: 6px;
-      cursor: pointer;
-      margin-top: 15px;
+      background-color: transparent;
+      color: #0F172A;
+      border: 1px solid #94A3B8;
+      padding: 10px 14px;
+      font-size: 0.875rem;
+      border-radius: 8px;
       width: 100%;
-      opacity: 0.8;
+      cursor: pointer;
+      text-align: center;
+      margin-top: 16px;
     }
 
     input[type="file"] {
@@ -78,20 +73,25 @@
     }
 
     #status {
-      margin-top: 15px;
+      margin-top: 16px;
+      font-size: 0.9rem;
       font-weight: 600;
-      text-align: center;
+      color: #059669;
       display: none;
+      text-align: center;
     }
 
     #resultado {
-      margin-top: 20px;
+      margin-top: 16px;
+      width: 100%;
       padding: 12px;
-      background: var(--cinza-gelo);
+      background-color: #F0F4F8;
       border-radius: 8px;
+      font-size: 0.9rem;
+      color: #0F172A;
       white-space: pre-wrap;
       word-break: break-word;
-      font-size: 0.95rem;
+      min-height: 48px;
     }
   </style>
 </head>
@@ -108,14 +108,14 @@
     <div id="status">Lendo comprovante com IA...</div>
     <div id="resultado"></div>
 
-    <button class="btn-secondary" onclick="redefinirChave()">⚙️ Alterar Chave de API</button>
+    <button type="button" class="btn-secondary" onclick="redefinirChave()">⚙️ Alterar Chave de API</button>
   </div>
 
   <script>
     function obterChaveAPI() {
       let chave = localStorage.getItem('GEMINI_API_KEY');
       if (!chave) {
-        chave = prompt("Cole sua chave de API do Gemini aqui:");
+        chave = prompt("Cole sua chave de API do Gemini:");
         if (chave) {
           chave = chave.trim();
           localStorage.setItem('GEMINI_API_KEY', chave);
@@ -171,6 +171,7 @@
       });
     }
 
+    // Integração com a API de Visão do Gemini
     async function processarComIA(input) {
       if (!input.files || !input.files[0]) return;
 
@@ -193,6 +194,7 @@
 
         const promptText = "Analise este comprovante. Extraia e informe de forma limpa: Valor, Data, Nome do Pagador e Nome do Recebedor.";
 
+        // Chamada à API de Visão por IA (Gemini 1.5 Flash Multimodal)
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -210,8 +212,10 @@
 
         if (data.candidates && data.candidates[0].content.parts[0].text) {
           resultado.innerText = data.candidates[0].content.parts[0].text;
+        } else if (data.error) {
+          resultado.innerText = "Erro na API: " + data.error.message;
         } else {
-          resultado.innerText = "Não foi possível extrair os dados. Verifique a chave ou a foto.";
+          resultado.innerText = "Não foi possível extrair os dados. Verifique a imagem ou a chave inserida.";
         }
 
       } catch (erro) {
@@ -225,3 +229,4 @@
   </script>
 </body>
 </html>
+
