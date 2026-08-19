@@ -78,7 +78,7 @@
       </label>
       <button class="btn btn-outline" onclick="abrirModalManual()">➕ Manual</button>
     </div>
-    <div id="status" class="status">⚡ Processando e Lendo...</div>
+    <div id="status" class="status">⚡ Processando imagem...</div>
   </div>
 
   <div class="card">
@@ -153,7 +153,6 @@
     });
 
     window.addEventListener('appinstalled', (e) => {
-      console.log('ReciboBox instalado com sucesso!');
       installArea.style.display = 'none';
     });
 
@@ -213,29 +212,26 @@
       if (!input.files || !input.files[0]) return;
       const status = document.getElementById('status');
       status.style.display = 'block';
+      status.innerText = "⚡ Lendo comprovante...";
 
       try {
         const imagemTratada = await otimizarImagemParaOCR(input.files[0]);
         const worker = await Tesseract.createWorker('por');
-        
-        await worker.setParameters({
-          tessedit_char_whitelist: '0123456789R$,.DEBITOCREDITOPIXVOUCHERVALEREFEICAOALIMENTACAO'
-        });
 
         const ret = await worker.recognize(imagemTratada);
         await worker.terminate();
 
-        const texto = ret.data.text.toUpperCase();
-        extrairDados(texto);
+        const textoBruto = ret.data.text;
+        extrairDados(textoBruto);
       } catch (err) {
-        alert('Erro no processamento. Tente tirar uma foto mais aproximada ou use "+ Manual".');
+        alert('Erro ao processar imagem. Tente usar a opção "+ Manual".');
       } finally {
         status.style.display = 'none';
         input.value = '';
       }
     }
 
-    // Pré-processamento avançado: Binarização (Preto e Branco Puro)
+    // Tratamento de imagem com foco em nitidez
     function otimizarImagemParaOCR(file) {
       return new Promise((resolve) => {
         const img = new Image();
@@ -243,7 +239,7 @@
           const canvas = document.getElementById('canvasAux');
           const ctx = canvas.getContext('2d');
           
-          const maxDim = 1500; // Resolução maior para capturar detalhes
+          const maxDim = 1200;
           let w = img.width;
           let h = img.height;
 
@@ -264,71 +260,81 @@
           const imgData = ctx.getImageData(0, 0, w, h);
           const data = imgData.data;
 
-          // Aplica Binarização (Preto e Branco Puro baseado em um limiar)
-          const threshold = 128; // Ponto de corte entre preto e branco
-
+          // Escala de cinza e contraste moderado
           for (let i = 0; i < data.length; i += 4) {
-            // Converte para escala de cinza usando luminosidade atenuada
-            let avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-            
-            // Se a média for maior que o limiar, vira branco; senão, vira preto.
-            let val = avg > threshold ? 255 : 0;
+            let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+            gray = ((gray - 128) * 1.4) + 128;
+            gray = Math.min(255, Math.max(0, gray));
 
-            data[i] = val;     // Vermelho
-            data[i + 1] = val; // Verde
-            data[i + 2] = val; // Azul
-            // data[i+3] é o Alpha (transparência), mantemos 100% opaco
+            data[i] = gray;
+            data[i + 1] = gray;
+            data[i + 2] = gray;
           }
 
           ctx.putImageData(imgData, 0, 0);
-          resolve(canvas.toDataURL('image/jpeg', 0.9));
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
         };
         img.src = URL.createObjectURL(file);
       });
     }
 
     function extrairDados(texto) {
-      // Identificação do Tipo (mantida a mesma lógica anterior)
+      // Normaliza texto removendo acentos
+      const textoLimpo = texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+
+      // Identificação do Tipo de Pagamento
       let tipo = 'CRÉDITO';
-      if (texto.includes('DEBITO') || texto.includes('DÉBITO') || texto.includes('DEB')) {
+
+      if (textoLimpo.includes('DEBITO') || textoLimpo.includes('DEB')) {
         tipo = 'DÉBITO';
-      } else if (texto.includes('PIX')) {
+      } else if (textoLimpo.includes('PIX')) {
         tipo = 'PIX';
-      } else if (texto.includes('VOUCHER') || texto.includes('VR') || texto.includes('VALE') || texto.includes('ALIMENT') || texto.includes('REFEIC')) {
+      } else if (
+        textoLimpo.includes('VOUCHER') || 
+        textoLimpo.includes('VR') || 
+        textoLimpo.includes('VALE') || 
+        textoLimpo.includes('ALIMENT') || 
+        textoLimpo.includes('REFEIC') ||
+        textoLimpo.includes('SODEXO') ||
+        textoLimpo.includes('ALELO') ||
+        textoLimpo.includes('TICKET')
+      ) {
         tipo = 'VOUCHER';
       }
 
-      // Regex para capturar padrões numéricos de valor (ex: 0,00 ou 1.250,50 ou 10.00)
-      const regexValores = /([\d]+(?:[\,\.]\d{3})*(?:[\,\.]\d{2}))/g;
-      let matches = [];
+      // Busca de valores com regex flexível
+      const regexValores = /(\d+[\,\.]\d{2})/g;
+      let valoresEncontrados = [];
       let match;
 
-      while ((match = regexValores.exec(texto)) !== null) {
-        // Limpa o valor capturado (remove pontos de milhar e troca vírgula decimal por ponto)
-        let valorLimpo = match[1].replace(/\./g, '').replace(',', '.');
-        let valorNum = parseFloat(valorLimpo);
-        if (!isNaN(valorNum) && valorNum > 0) {
-          matches.push(valorNum);
+      while ((match = regexValores.exec(textoLimpo)) !== null) {
+        let strVal = match[1];
+        // Padroniza separador
+        strVal = strVal.replace('.', ',');
+        const partes = strVal.split(',');
+        const num = parseFloat(partes[0] + '.' + partes[partes.length - 1]);
+
+        if (!isNaN(num) && num > 0) {
+          valoresEncontrados.push(num);
         }
       }
 
-      let valorEncontrado = 0;
-
-      if (matches.length > 0) {
-        // Nova Lógica: Seleciona o MAIOR valor encontrado no papel (quase sempre o Total)
-        valorEncontrado = Math.max(...matches);
+      let valorFinal = 0;
+      if (valoresEncontrados.length > 0) {
+        // Pega o maior valor identificado (geralmente o Total)
+        valorFinal = Math.max(...valoresEncontrados);
       }
 
-      if (valorEncontrado > 0) {
-        lancamentos.push({ 
+      if (valorFinal > 0) {
+        lancamentos.push({
           id: Date.now(),
-          tipo, 
-          valor: valorEncontrado, 
-          hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) 
+          tipo,
+          valor: valorFinal,
+          hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
         });
         salvarEAtualizar();
       } else {
-        alert('Não conseguimos ler o valor final.\n\nDicas: Foco no TOTAL e boa luz.\nSe o papel estiver apagado, use "+ Manual".');
+        alert("Não encontramos o valor no papel.\n\nTexto Lido pelo Leitor:\n" + texto.substring(0, 150) + "...\n\nDica: Foque bem a foto no TOTAL e evite sombras.");
       }
     }
 
