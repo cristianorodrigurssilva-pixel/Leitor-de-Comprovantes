@@ -51,7 +51,7 @@
     
     .status { text-align: center; color: #2563eb; font-weight: 600; font-size: 0.88rem; margin-top: 10px; display: none; }
 
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
     .modal { background: white; padding: 20px; border-radius: 14px; width: 100%; max-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
     .modal h3 { font-size: 1.1rem; margin-bottom: 12px; color: #0f172a; }
     .form-group { margin-bottom: 12px; }
@@ -60,10 +60,9 @@
     .form-control:focus { border-color: #2563eb; }
     .modal-buttons { display: flex; gap: 8px; margin-top: 16px; }
 
-    /* Estilos do Preview/Foco de Imagem */
-    #previewContainer { width: 100%; max-height: 250px; overflow: hidden; position: relative; background: #000; border-radius: 8px; margin-bottom: 12px; display: flex; align-items: center; justify-content: center; }
-    #previewImg { max-width: 100%; height: auto; }
-    .crop-hint { font-size: 0.8rem; color: #64748b; margin-bottom: 10px; text-align: center; }
+    /* Área de Diagnóstico */
+    .debug-area { margin-top: 12px; display: none; }
+    .debug-area textarea { width: 100%; height: 90px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; font-size: 0.75rem; color: #475569; font-family: monospace; }
   </style>
 </head>
 <body>
@@ -79,11 +78,11 @@
     <div class="actions-grid">
       <label class="btn btn-primary">
         📷 Escanear Comprovante
-        <input type="file" accept="image/*" capture="environment" id="cameraInput" onchange="carregarPreview(this)">
+        <input type="file" accept="image/*" capture="environment" id="cameraInput" onchange="processarImagem(this)">
       </label>
       <button class="btn btn-outline" onclick="abrirModalManual()">➕ Manual</button>
     </div>
-    <div id="status" class="status">⚡ Processando...</div>
+    <div id="status" class="status">⚡ Processando imagem...</div>
   </div>
 
   <div class="card">
@@ -109,19 +108,10 @@
     <button class="btn btn-secondary" onclick="limparTudo()">Zerar Caixa</button>
   </div>
 
-  <!-- Modal de Confirmação de Leitura -->
-  <div class="modal-overlay" id="modalCrop">
-    <div class="modal">
-      <h3>Confirme o Comprovante</h3>
-      <p class="crop-hint">Dica: Aproxime a foto na área do **TOTAL** e do **TIPO DE PAGAMENTO**.</p>
-      <div id="previewContainer">
-        <img id="previewImg" src="" alt="Comprovante">
-      </div>
-      <div class="modal-buttons">
-        <button class="btn btn-secondary" style="margin-top:0;" onclick="fecharModalCrop()">Cancelar</button>
-        <button class="btn btn-primary" onclick="iniciarOCR()">Confirmar e Ler</button>
-      </div>
-    </div>
+  <!-- Diagnóstico de Leitura -->
+  <div class="card debug-area" id="cardDebug">
+    <h2 style="font-size: 0.9rem; color: #64748b; margin-bottom: 6px;">🔍 Texto Lido da Última Foto (Diagnóstico):</h2>
+    <textarea id="debugTexto" readonly placeholder="O texto reconhecido aparecerá aqui..."></textarea>
   </div>
 
   <!-- Modal Manual -->
@@ -154,7 +144,6 @@
     let deferredPrompt;
     const installArea = document.getElementById('installArea');
     const btnInstall = document.getElementById('btnInstall');
-    let imagemCarregadaFile = null;
 
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
@@ -190,54 +179,36 @@
       document.getElementById('modalManual').style.display = 'none';
     }
 
-    function fecharModalCrop() {
-      document.getElementById('modalCrop').style.display = 'none';
-      document.getElementById('cameraInput').value = '';
-    }
-
-    function carregarPreview(input) {
+    async function processarImagem(input) {
       if (!input.files || !input.files[0]) return;
-      imagemCarregadaFile = input.files[0];
-      
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        document.getElementById('previewImg').src = e.target.result;
-        document.getElementById('modalCrop').style.display = 'flex';
-      };
-      reader.readAsDataURL(imagemCarregadaFile);
-    }
-
-    async function iniciarOCR() {
-      document.getElementById('modalCrop').style.display = 'none';
       const status = document.getElementById('status');
       status.style.display = 'block';
-      status.innerText = "⚡ Lendo valores...";
+      status.innerText = "⚡ Lendo comprovante...";
 
       try {
-        const imagemTratada = await otimizarImagem(imagemCarregadaFile);
+        const imagemTratada = await otimizarImagemParaOCR(input.files[0]);
         const worker = await Tesseract.createWorker('por');
-        
+
         const ret = await worker.recognize(imagemTratada);
         await worker.terminate();
 
         extrairDados(ret.data.text);
       } catch (err) {
-        alert("Erro na leitura. Tente fotografar bem de perto ou insira no '+ Manual'.");
+        alert("Erro no processamento da imagem.");
       } finally {
         status.style.display = 'none';
-        document.getElementById('cameraInput').value = '';
+        input.value = '';
       }
     }
 
-    function otimizarImagem(file) {
+    function otimizarImagemParaOCR(file) {
       return new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
           const canvas = document.getElementById('canvasAux');
           const ctx = canvas.getContext('2d');
           
-          // Foca na resolução ideal para leitor de OCR
-          const maxDim = 1000;
+          const maxDim = 1200;
           let w = img.width;
           let h = img.height;
 
@@ -250,45 +221,70 @@
           canvas.height = h;
           ctx.drawImage(img, 0, 0, w, h);
 
-          // Aumento leve de contraste
           const imgData = ctx.getImageData(0, 0, w, h);
           const data = imgData.data;
 
+          // Processamento leve para contraste sem apagar letras finas
           for (let i = 0; i < data.length; i += 4) {
-            let gray = 0.2126 * data[i] + 0.7152 * data[i+1] + 0.0722 * data[i+2];
-            // Filtro de contraste simples
-            gray = gray < 110 ? 0 : 255;
+            let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+            gray = ((gray - 128) * 1.5) + 128;
+            gray = Math.min(255, Math.max(0, gray));
             data[i] = gray;
-            data[i+1] = gray;
-            data[i+2] = gray;
+            data[i + 1] = gray;
+            data[i + 2] = gray;
           }
 
           ctx.putImageData(imgData, 0, 0);
-          resolve(canvas.toDataURL('image/jpeg', 0.9));
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
         };
         img.src = URL.createObjectURL(file);
       });
     }
 
-    function extrairDados(texto) {
-      const txt = texto.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    function extrairDados(textoBruto) {
+      // Exibe o texto cru na área de diagnóstico
+      document.getElementById('debugTexto').value = textoBruto;
+      document.getElementById('cardDebug').style.display = 'block';
 
-      // Identificação do Tipo
+      // Normaliza removendo acentos
+      let txt = textoBruto.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+      // 1. Identificação Flexível do Tipo de Pagamento
       let tipo = 'CRÉDITO';
-      if (txt.includes('DEBITO') || txt.includes('DEB')) tipo = 'DÉBITO';
-      else if (txt.includes('PIX')) tipo = 'PIX';
-      else if (txt.includes('VOUCHER') || txt.includes('VR') || txt.includes('VALE') || txt.includes('REFEIC') || txt.includes('ALELO') || txt.includes('SODEXO')) tipo = 'VOUCHER';
+      if (/DEBITO|DEB\b|MAESTRO|ELECTRON/i.test(txt)) {
+        tipo = 'DÉBITO';
+      } else if (/PIX|QRPAY|QRCODE|PAGSMILE/i.test(txt)) {
+        tipo = 'PIX';
+      } else if (/VOUCHER|VR\b|VALE|REFEIC|ALIMENT|SODEXO|ALELO|TICKET|BEN\b|PLUXEE/i.test(txt)) {
+        tipo = 'VOUCHER';
+      }
 
-      // Captura de valores numéricos
-      const regex = /(\d+[\,\.]\d{2})/g;
+      // 2. Dicionário de Substituição de Erros de OCR
+      // Substitui letras erroneamente lidas como números em contextos de valores
+      let txtCorrigido = txt.replace(/([R\$]?\s*)([0-9OoSsDIBlZZEAGTP\,\.]+)/g, function(match) {
+        return match
+          .replace(/[OoDQ]/g, '0')
+          .replace(/[Il\|L]/g, '1')
+          .replace(/[Z]/g, '2')
+          .replace(/[E]/g, '3')
+          .replace(/[A]/g, '4')
+          .replace(/[Ss]/g, '5')
+          .replace(/[G]/g, '6')
+          .replace(/[B]/g, '8');
+      });
+
+      // 3. Captura Padrões Numéricos de Valor (ex: 12,50 ou 12.50)
+      const regexValores = /(\d+[\,\.]\d{2})/g;
       let valores = [];
       let match;
 
-      while ((match = regex.exec(txt)) !== null) {
+      while ((match = regexValores.exec(txtCorrigido)) !== null) {
         let v = match[1].replace('.', ',');
         let partes = v.split(',');
-        let num = parseFloat(partes[0] + '.' + partes[1]);
-        if (!isNaN(num) && num > 0) valores.push(num);
+        let num = parseFloat(partes[0] + '.' + partes[partes.length - 1]);
+        if (!isNaN(num) && num > 0 && num < 10000) {
+          valores.push(num);
+        }
       }
 
       let valorFinal = valores.length > 0 ? Math.max(...valores) : 0;
@@ -302,7 +298,7 @@
         });
         salvarEAtualizar();
       } else {
-        alert("Não conseguimos identificar o valor.\n\nRegra importante: Tire a foto BEM DE PERTO, focando apenas no valor final e no tipo de pagamento.");
+        alert("Não identificamos o valor.\n\nConfira o bloco 'Diagnóstico de Leitura' no final da tela para ver o texto que o aplicativo conseguiu extrair.");
       }
     }
 
