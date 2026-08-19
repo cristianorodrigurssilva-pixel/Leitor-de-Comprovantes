@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Leitor de Comprovantes</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     :root {
       --verde-esmeralda: #059669;
       --azul-grafite: #0F172A;
@@ -28,8 +32,7 @@
       border-radius: 16px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.05);
       width: 100%;
-      max-width: 480px;
-      box-sizing: border-box;
+      max-width: 400px;
     }
 
     h1 {
@@ -43,7 +46,7 @@
       background-color: var(--verde-esmeralda);
       color: #ffffff;
       border: none;
-      padding: 14px 20px;
+      padding: 14px 16px;
       font-size: 1rem;
       font-weight: 600;
       border-radius: 8px;
@@ -54,13 +57,14 @@
       justify-content: center;
       gap: 8px;
       margin-top: 10px;
+      text-align: center;
     }
 
     .btn-secondary {
       background: transparent;
       color: var(--azul-grafite);
       border: 1px solid var(--azul-grafite);
-      padding: 8px 12px;
+      padding: 10px 12px;
       font-size: 0.85rem;
       border-radius: 6px;
       cursor: pointer;
@@ -108,7 +112,6 @@
   </div>
 
   <script>
-    // Gerenciamento da Chave no Navegador
     function obterChaveAPI() {
       let chave = localStorage.getItem('GEMINI_API_KEY');
       if (!chave) {
@@ -129,7 +132,6 @@
       }
     }
 
-    // Redução da Imagem para envio leve
     function converterParaBase64Reduzido(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -169,7 +171,6 @@
       });
     }
 
-    // Processamento da Imagem com a IA
     async function processarComIA(input) {
       if (!input.files || !input.files[0]) return;
 
