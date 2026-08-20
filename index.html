@@ -1,147 +1,3 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>ReciboBox</title>
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#2563eb">
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-    body { background: #f1f5f9; color: #1e293b; padding: 16px; max-width: 500px; margin: 0 auto; -webkit-tap-highlight-color: transparent; padding-top: 10px; }
-    
-    #installArea { display: none; background: #fee2e2; border: 1.5px solid #ef4444; padding: 12px; border-radius: 12px; margin-bottom: 16px; text-align: center; }
-    #installArea p { color: #991b1b; font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; }
-    .btn-install { background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.9rem; }
-
-    h1 { font-size: 1.3rem; text-align: center; margin-bottom: 16px; color: #0f172a; display: flex; align-items: center; justify-content: center; gap: 8px; }
-    
-    .card { background: white; padding: 16px; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); margin-bottom: 16px; }
-    .actions-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
-    
-    .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 0.98rem; font-weight: 700; cursor: pointer; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
-    .btn-primary { background: #2563eb; color: white; }
-    .btn-outline { background: #f8fafc; color: #2563eb; border: 1.5px solid #cbd5e1; }
-    .btn-secondary { background: #e2e8f0; color: #334155; margin-top: 12px; }
-    .btn-danger { background: #fee2e2; color: #991b1b; padding: 4px 8px; font-size: 0.8rem; border-radius: 6px; border: none; cursor: pointer; }
-    
-    input[type="file"] { display: none; }
-
-    .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
-    .summary-box { background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0; }
-    .summary-box span { display: block; font-size: 0.82rem; color: #64748b; font-weight: 500; }
-    .summary-box strong { font-size: 1.15rem; color: #0f172a; display: block; margin-top: 2px; }
-
-    .total-box { background: #eff6ff; border: 1.5px solid #bfdbfe; padding: 14px; border-radius: 10px; text-align: center; margin-top: 12px; }
-    .total-box span { font-size: 0.85rem; color: #1e40af; font-weight: 700; letter-spacing: 0.5px; }
-    .total-box strong { display: block; font-size: 1.8rem; color: #1e3a8a; margin-top: 2px; }
-
-    .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-    .list-header h2 { font-size: 1.1rem; color: #0f172a; }
-    .badge { background: #e2e8f0; color: #334155; font-size: 0.78rem; padding: 3px 8px; border-radius: 12px; font-weight: 600; }
-
-    .list { list-style: none; max-height: 260px; overflow-y: auto; }
-    .list-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
-    .item-info { display: flex; flex-direction: column; }
-    .item-info strong { font-size: 0.95rem; color: #1e293b; }
-    .item-info small { font-size: 0.75rem; color: #94a3b8; }
-    .item-actions { display: flex; align-items: center; gap: 10px; }
-    .item-actions strong { font-size: 0.98rem; color: #0f172a; }
-    
-    .status { text-align: center; color: #2563eb; font-weight: 600; font-size: 0.88rem; margin-top: 10px; display: none; }
-
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
-    .modal { background: white; padding: 20px; border-radius: 14px; width: 100%; max-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
-    .modal h3 { font-size: 1.1rem; margin-bottom: 12px; color: #0f172a; }
-    .form-group { margin-bottom: 12px; }
-    .form-group label { display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 4px; font-weight: 600; }
-    .form-control { width: 100%; padding: 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 1.1rem; font-weight: bold; outline: none; }
-    .form-control:focus { border-color: #2563eb; }
-    .modal-buttons { display: flex; gap: 8px; margin-top: 16px; }
-
-    /* Área de Diagnóstico */
-    .debug-area { margin-top: 12px; display: none; }
-    .debug-area textarea { width: 100%; height: 90px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; font-size: 0.75rem; color: #475569; font-family: monospace; }
-  </style>
-</head>
-<body>
-
-  <div id="installArea">
-    <p>⚡ Instale o ReciboBox para usar offline!</p>
-    <button class="btn-install" id="btnInstall">Instalar ReciboBox</button>
-  </div>
-
-  <h1>🧾 ReciboBox</h1>
-
-  <div class="card">
-    <div class="actions-grid">
-      <label class="btn btn-primary">
-        📷 Escanear Comprovante
-        <input type="file" accept="image/*" capture="environment" id="cameraInput" onchange="processarImagem(this)">
-      </label>
-      <button class="btn btn-outline" onclick="abrirModalManual()">➕ Manual</button>
-    </div>
-    <div id="status" class="status">⚡ Processando imagem...</div>
-    <!-- INCLUSÃO: Botão discreto para alterar/redefinir a chave da IA -->
-    <button class="btn btn-secondary" style="font-size: 0.8rem; padding: 8px;" onclick="redefinirChaveIA()">⚙️ Alterar Chave da IA</button>
-  </div>
-
-  <div class="card">
-    <h2 style="font-size: 1.1rem; color: #0f172a;">Resumo do Caixa</h2>
-    <div class="summary">
-      <div class="summary-box"><span>Débito</span><strong id="totalDebito">R$ 0,00</strong></div>
-      <div class="summary-box"><span>Crédito</span><strong id="totalCredito">R$ 0,00</strong></div>
-      <div class="summary-box"><span>Pix</span><strong id="totalPix">R$ 0,00</strong></div>
-      <div class="summary-box"><span>Voucher/VR</span><strong id="totalVoucher">R$ 0,00</strong></div>
-    </div>
-    <div class="total-box">
-      <span>TOTAL GERAL</span>
-      <strong id="totalGeral">R$ 0,00</strong>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="list-header">
-      <h2>Lançamentos</h2>
-      <span class="badge" id="qtdItens">0 itens</span>
-    </div>
-    <ul id="listaLancamentos" class="list"></ul>
-    <button class="btn btn-secondary" onclick="limparTudo()">Zerar Caixa</button>
-  </div>
-
-  <!-- Diagnóstico de Leitura -->
-  <div class="card debug-area" id="cardDebug">
-    <h2 style="font-size: 0.9rem; color: #64748b; margin-bottom: 6px;">🔍 Texto Lido da Última Foto (Diagnóstico):</h2>
-    <textarea id="debugTexto" readonly placeholder="O texto reconhecido aparecerá aqui..."></textarea>
-  </div>
-
-  <!-- Modal Manual -->
-  <div class="modal-overlay" id="modalManual">
-    <div class="modal">
-      <h3>Inserir Lançamento Manual</h3>
-      <div class="form-group">
-        <label>Valor (R$)</label>
-        <input type="text" id="inputValor" class="form-control" inputmode="numeric" placeholder="R$ 0,00" oninput="aplicarMascaraMoeda(this)">
-      </div>
-      <div class="form-group">
-        <label>Tipo de Pagamento</label>
-        <select id="selectTipo" class="form-control" style="font-size:0.95rem; font-weight:normal;">
-          <option value="DÉBITO">Débito</option>
-          <option value="CRÉDITO" selected>Crédito</option>
-          <option value="PIX">Pix</option>
-          <option value="VOUCHER">Voucher / VR</option>
-        </select>
-      </div>
-      <div class="modal-buttons">
-        <button class="btn btn-secondary" style="margin-top:0;" onclick="fecharModalManual()">Cancelar</button>
-        <button class="btn btn-primary" onclick="salvarManual()">Salvar</button>
-      </div>
-    </div>
-  </div>
-
-  <canvas id="canvasAux" style="display:none;"></canvas>
-
   <script>
     let deferredPrompt;
     const installArea = document.getElementById('installArea');
@@ -181,7 +37,6 @@
       document.getElementById('modalManual').style.display = 'none';
     }
 
-    // --- INCLUSÃO: Funções para controle da Chave de API no celular ---
     function obterChaveIA() {
       let key = localStorage.getItem('GEMINI_API_KEY');
       if (!key) {
@@ -202,7 +57,6 @@
       }
     }
 
-    // --- INCLUSÃO: Substituição do leitor por chamada à IA do Gemini ---
     async function processarImagem(input) {
       if (!input.files || !input.files[0]) return;
 
@@ -221,9 +75,10 @@
         const imagemTratadaBase64 = await otimizarImagemParaOCR(input.files[0]);
         const base64Limpo = imagemTratadaBase64.split(',')[1];
 
-        const promptIA = "Analise este comprovante. Identifique o valor total e o tipo de pagamento (DÉBITO, CRÉDITO, PIX ou VOUCHER). Responda EXATAMENTE no formato JSON: {\"valor\": 00.00, \"tipo\": \"TIPO\"}";
+        const promptIA = "Examine o comprovante de pagamento. Extraia o valor total final pago e classifique a forma de pagamento estritamente entre uma destas opções: DÉBITO, CRÉDITO, PIX ou VOUCHER. Retorne APENAS um JSON puro sem marcação de código: {\"valor\": 00.00, \"tipo\": \"TIPO\"}";
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        // Endpoint atualizado para o Gemini 2.5 Flash
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -239,13 +94,14 @@
         const data = await response.json();
 
         if (data.candidates && data.candidates[0].content.parts[0].text) {
-          const textoResposta = data.candidates[0].content.parts[0].text;
+          let textoResposta = data.candidates[0].content.parts[0].text;
           
-          // Exibe o retorno da IA na área de diagnóstico
           document.getElementById('debugTexto').value = textoResposta;
           document.getElementById('cardDebug').style.display = 'block';
 
-          // Tenta extrair o JSON enviado pela IA
+          // Limpa possíveis marcações de bloco de código (```json ... ```)
+          textoResposta = textoResposta.replace(/```json/g, '').replace(/```/g, '').trim();
+
           const jsonMatch = textoResposta.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
             const resultadoIA = JSON.parse(jsonMatch[0]);
@@ -268,7 +124,7 @@
               alert("Não foi possível identificar o valor no comprovante.");
             }
           } else {
-            alert("A IA não retornou um formato válido. Verifique a área de diagnóstico.");
+            alert("A IA não retornou um formato JSON válido.");
           }
         } else if (data.error) {
           alert("Erro na API: " + data.error.message);
@@ -278,7 +134,7 @@
 
       } catch (err) {
         console.error(err);
-        alert("Erro no processamento da imagem com IA.");
+        alert("Erro no processamento da imagem com IA. Verifique sua conexão e a chave de API.");
       } finally {
         status.style.display = 'none';
         input.value = '';
@@ -305,20 +161,7 @@
           canvas.height = h;
           ctx.drawImage(img, 0, 0, w, h);
 
-          const imgData = ctx.getImageData(0, 0, w, h);
-          const data = imgData.data;
-
-          // Processamento leve para contraste sem apagar letras finas
-          for (let i = 0; i < data.length; i += 4) {
-            let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-            gray = ((gray - 128) * 1.5) + 128;
-            gray = Math.min(255, Math.max(0, gray));
-            data[i] = gray;
-            data[i + 1] = gray;
-            data[i + 2] = gray;
-          }
-
-          ctx.putImageData(imgData, 0, 0);
+          // Envia a imagem em boa qualidade JPEG sem filtros agressivos
           resolve(canvas.toDataURL('image/jpeg', 0.85));
         };
         img.src = URL.createObjectURL(file);
@@ -404,5 +247,3 @@
 
     atualizarTela();
   </script>
-</body>
-</html>
