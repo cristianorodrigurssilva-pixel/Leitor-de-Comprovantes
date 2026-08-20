@@ -2,207 +2,235 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ReciboBox - Leitor de Comprovantes</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ReciboBox</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2563eb">
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: #f1f5f9; color: #1e293b; padding: 16px; max-width: 500px; margin: 0 auto; -webkit-tap-highlight-color: transparent; padding-top: 10px; }
+    
+    #installArea { display: none; background: #fee2e2; border: 1.5px solid #ef4444; padding: 12px; border-radius: 12px; margin-bottom: 16px; text-align: center; }
+    #installArea p { color: #991b1b; font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; }
+    .btn-install { background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.9rem; }
 
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background-color: #F0F4F8;
-      color: #0F172A;
-      display: flex;
-      justify-content: center;
-      padding: 24px 16px;
-      min-height: 100vh;
-    }
+    h1 { font-size: 1.3rem; text-align: center; margin-bottom: 16px; color: #0f172a; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    
+    .card { background: white; padding: 16px; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); margin-bottom: 16px; }
+    .actions-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
+    
+    .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 0.98rem; font-weight: 700; cursor: pointer; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-outline { background: #f8fafc; color: #2563eb; border: 1.5px solid #cbd5e1; }
+    .btn-secondary { background: #e2e8f0; color: #334155; margin-top: 12px; }
+    .btn-danger { background: #fee2e2; color: #991b1b; padding: 4px 8px; font-size: 0.8rem; border-radius: 6px; border: none; cursor: pointer; }
+    
+    input[type="file"] { display: none; }
 
-    .card {
-      background: #ffffff;
-      padding: 24px;
-      border-radius: 16px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-      width: 100%;
-      max-width: 380px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
+    .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .summary-box { background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0; }
+    .summary-box span { display: block; font-size: 0.82rem; color: #64748b; font-weight: 500; }
+    .summary-box strong { font-size: 1.15rem; color: #0f172a; display: block; margin-top: 2px; }
 
-    h1 {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: #0F172A;
-      margin-bottom: 20px;
-      text-align: center;
-    }
+    .total-box { background: #eff6ff; border: 1.5px solid #bfdbfe; padding: 14px; border-radius: 10px; text-align: center; margin-top: 12px; }
+    .total-box span { font-size: 0.85rem; color: #1e40af; font-weight: 700; letter-spacing: 0.5px; }
+    .total-box strong { display: block; font-size: 1.8rem; color: #1e3a8a; margin-top: 2px; }
 
-    .btn-primary {
-      background-color: #059669;
-      color: #ffffff;
-      border: none;
-      padding: 14px 16px;
-      font-size: 1rem;
-      font-weight: 600;
-      border-radius: 8px;
-      width: 100%;
-      cursor: pointer;
-      text-align: center;
-      display: block;
-    }
+    .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .list-header h2 { font-size: 1.1rem; color: #0f172a; }
+    .badge { background: #e2e8f0; color: #334155; font-size: 0.78rem; padding: 3px 8px; border-radius: 12px; font-weight: 600; }
 
-    .btn-secondary {
-      background-color: transparent;
-      color: #0F172A;
-      border: 1px solid #94A3B8;
-      padding: 10px 14px;
-      font-size: 0.875rem;
-      border-radius: 8px;
-      width: 100%;
-      cursor: pointer;
-      text-align: center;
-      margin-top: 16px;
-    }
+    .list { list-style: none; max-height: 260px; overflow-y: auto; }
+    .list-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+    .item-info { display: flex; flex-direction: column; }
+    .item-info strong { font-size: 0.95rem; color: #1e293b; }
+    .item-info small { font-size: 0.75rem; color: #94a3b8; }
+    .item-actions { display: flex; align-items: center; gap: 10px; }
+    .item-actions strong { font-size: 0.98rem; color: #0f172a; }
+    
+    .status { text-align: center; color: #2563eb; font-weight: 600; font-size: 0.88rem; margin-top: 10px; display: none; }
 
-    input[type="file"] {
-      display: none;
-    }
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
+    .modal { background: white; padding: 20px; border-radius: 14px; width: 100%; max-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+    .modal h3 { font-size: 1.1rem; margin-bottom: 12px; color: #0f172a; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 4px; font-weight: 600; }
+    .form-control { width: 100%; padding: 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 1.1rem; font-weight: bold; outline: none; }
+    .form-control:focus { border-color: #2563eb; }
+    .modal-buttons { display: flex; gap: 8px; margin-top: 16px; }
 
-    #status {
-      margin-top: 16px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: #059669;
-      display: none;
-      text-align: center;
-    }
-
-    #resultado {
-      margin-top: 16px;
-      width: 100%;
-      padding: 12px;
-      background-color: #F0F4F8;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      color: #0F172A;
-      white-space: pre-wrap;
-      word-break: break-word;
-      min-height: 48px;
-    }
+    /* Área de Diagnóstico */
+    .debug-area { margin-top: 12px; display: none; }
+    .debug-area textarea { width: 100%; height: 90px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; font-size: 0.75rem; color: #475569; font-family: monospace; }
   </style>
 </head>
 <body>
 
-  <div class="card">
-    <h1>Escanear Comprovante Pix</h1>
-
-    <label for="fileInput" class="btn-primary">
-      📷 Selecionar / Tirar Foto
-    </label>
-    <input type="file" id="fileInput" accept="image/*" onchange="processarComIA(this)">
-
-    <div id="status">Lendo comprovante com IA...</div>
-    <div id="resultado"></div>
-
-    <button type="button" class="btn-secondary" onclick="redefinirChave()">⚙️ Alterar Chave de API</button>
+  <div id="installArea">
+    <p>⚡ Instale o ReciboBox para usar offline!</p>
+    <button class="btn-install" id="btnInstall">Instalar ReciboBox</button>
   </div>
 
+  <h1>🧾 ReciboBox</h1>
+
+  <div class="card">
+    <div class="actions-grid">
+      <label class="btn btn-primary">
+        📷 Escanear Comprovante
+        <input type="file" accept="image/*" capture="environment" id="cameraInput" onchange="processarImagem(this)">
+      </label>
+      <button class="btn btn-outline" onclick="abrirModalManual()">➕ Manual</button>
+    </div>
+    <div id="status" class="status">⚡ Processando imagem...</div>
+    <!-- INCLUSÃO: Botão discreto para alterar/redefinir a chave da IA -->
+    <button class="btn btn-secondary" style="font-size: 0.8rem; padding: 8px;" onclick="redefinirChaveIA()">⚙️ Alterar Chave da IA</button>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size: 1.1rem; color: #0f172a;">Resumo do Caixa</h2>
+    <div class="summary">
+      <div class="summary-box"><span>Débito</span><strong id="totalDebito">R$ 0,00</strong></div>
+      <div class="summary-box"><span>Crédito</span><strong id="totalCredito">R$ 0,00</strong></div>
+      <div class="summary-box"><span>Pix</span><strong id="totalPix">R$ 0,00</strong></div>
+      <div class="summary-box"><span>Voucher/VR</span><strong id="totalVoucher">R$ 0,00</strong></div>
+    </div>
+    <div class="total-box">
+      <span>TOTAL GERAL</span>
+      <strong id="totalGeral">R$ 0,00</strong>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="list-header">
+      <h2>Lançamentos</h2>
+      <span class="badge" id="qtdItens">0 itens</span>
+    </div>
+    <ul id="listaLancamentos" class="list"></ul>
+    <button class="btn btn-secondary" onclick="limparTudo()">Zerar Caixa</button>
+  </div>
+
+  <!-- Diagnóstico de Leitura -->
+  <div class="card debug-area" id="cardDebug">
+    <h2 style="font-size: 0.9rem; color: #64748b; margin-bottom: 6px;">🔍 Texto Lido da Última Foto (Diagnóstico):</h2>
+    <textarea id="debugTexto" readonly placeholder="O texto reconhecido aparecerá aqui..."></textarea>
+  </div>
+
+  <!-- Modal Manual -->
+  <div class="modal-overlay" id="modalManual">
+    <div class="modal">
+      <h3>Inserir Lançamento Manual</h3>
+      <div class="form-group">
+        <label>Valor (R$)</label>
+        <input type="text" id="inputValor" class="form-control" inputmode="numeric" placeholder="R$ 0,00" oninput="aplicarMascaraMoeda(this)">
+      </div>
+      <div class="form-group">
+        <label>Tipo de Pagamento</label>
+        <select id="selectTipo" class="form-control" style="font-size:0.95rem; font-weight:normal;">
+          <option value="DÉBITO">Débito</option>
+          <option value="CRÉDITO" selected>Crédito</option>
+          <option value="PIX">Pix</option>
+          <option value="VOUCHER">Voucher / VR</option>
+        </select>
+      </div>
+      <div class="modal-buttons">
+        <button class="btn btn-secondary" style="margin-top:0;" onclick="fecharModalManual()">Cancelar</button>
+        <button class="btn btn-primary" onclick="salvarManual()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="canvasAux" style="display:none;"></canvas>
+
   <script>
-    function obterChaveAPI() {
-      let chave = localStorage.getItem('GEMINI_API_KEY');
-      if (!chave) {
-        chave = prompt("Cole sua chave de API do Gemini:");
-        if (chave) {
-          chave = chave.trim();
-          localStorage.setItem('GEMINI_API_KEY', chave);
-        }
+    let deferredPrompt;
+    const installArea = document.getElementById('installArea');
+    const btnInstall = document.getElementById('btnInstall');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installArea.style.display = 'block';
+    });
+
+    btnInstall.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt = null;
+        installArea.style.display = 'none';
       }
-      return chave;
+    });
+
+    let lancamentos = JSON.parse(localStorage.getItem('lancamentos') || '[]');
+
+    function aplicarMascaraMoeda(input) {
+      let valor = input.value.replace(/\D/g, '');
+      if (valor === '') { input.value = ''; return; }
+      valor = (parseInt(valor, 10) / 100).toFixed(2);
+      valor = valor.replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+      input.value = 'R$ ' + valor;
     }
 
-    function redefinirChave() {
-      const novaChave = prompt("Digite a nova chave de API:");
+    function abrirModalManual() {
+      document.getElementById('inputValor').value = '';
+      document.getElementById('modalManual').style.display = 'flex';
+      setTimeout(() => document.getElementById('inputValor').focus(), 100);
+    }
+
+    function fecharModalManual() {
+      document.getElementById('modalManual').style.display = 'none';
+    }
+
+    // --- INCLUSÃO: Funções para controle da Chave de API no celular ---
+    function obterChaveIA() {
+      let key = localStorage.getItem('GEMINI_API_KEY');
+      if (!key) {
+        key = prompt("Cole sua chave da API do Gemini (AIza...):");
+        if (key) {
+          key = key.trim();
+          localStorage.setItem('GEMINI_API_KEY', key);
+        }
+      }
+      return key;
+    }
+
+    function redefinirChaveIA() {
+      const novaChave = prompt("Digite a nova chave de API do Gemini:");
       if (novaChave) {
         localStorage.setItem('GEMINI_API_KEY', novaChave.trim());
         alert("Chave atualizada com sucesso!");
       }
     }
 
-    function converterParaBase64Reduzido(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = (event) => {
-          const img = new Image();
-          img.src = event.target.result;
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const maxDimension = 1024;
-            let width = img.width;
-            let height = img.height;
-
-            if (width > height) {
-              if (width > maxDimension) {
-                height *= maxDimension / width;
-                width = maxDimension;
-              }
-            } else {
-              if (height > maxDimension) {
-                width *= maxDimension / height;
-                height = maxDimension;
-              }
-            }
-
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-            
-            const base64String = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-            resolve(base64String);
-          };
-          img.onerror = (error) => reject(error);
-        };
-        reader.onerror = (error) => reject(error);
-      });
-    }
-
-    // Integração com a API de Visão do Gemini
-    async function processarComIA(input) {
+    // --- INCLUSÃO: Substituição do leitor por chamada à IA do Gemini ---
+    async function processarImagem(input) {
       if (!input.files || !input.files[0]) return;
 
-      const apiKey = obterChaveAPI();
+      const apiKey = obterChaveIA();
       if (!apiKey) {
-        alert("Você precisa informar a chave para usar a IA.");
+        alert("Você precisa informar a chave para usar a leitura por IA.");
         input.value = '';
         return;
       }
 
       const status = document.getElementById('status');
-      const resultado = document.getElementById('resultado');
-
       status.style.display = 'block';
-      resultado.innerText = '';
+      status.innerText = "🤖 Lendo comprovante com IA...";
 
       try {
-        const file = input.files[0];
-        const base64Data = await converterParaBase64Reduzido(file);
+        const imagemTratadaBase64 = await otimizarImagemParaOCR(input.files[0]);
+        const base64Limpo = imagemTratadaBase64.split(',')[1];
 
-        const promptText = "Analise este comprovante. Extraia e informe de forma limpa: Valor, Data, Nome do Pagador e Nome do Recebedor.";
+        const promptIA = "Analise este comprovante. Identifique o valor total e o tipo de pagamento (DÉBITO, CRÉDITO, PIX ou VOUCHER). Responda EXATAMENTE no formato JSON: {\"valor\": 00.00, \"tipo\": \"TIPO\"}";
 
-        // Chamada à API de Visão por IA (Gemini 1.5 Flash Multimodal)
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{
               parts: [
-                { text: promptText },
-                { inline_data: { mime_type: "image/jpeg", data: base64Data } }
+                { text: promptIA },
+                { inline_data: { mime_type: "image/jpeg", data: base64Limpo } }
               ]
             }]
           })
@@ -211,21 +239,170 @@
         const data = await response.json();
 
         if (data.candidates && data.candidates[0].content.parts[0].text) {
-          resultado.innerText = data.candidates[0].content.parts[0].text;
+          const textoResposta = data.candidates[0].content.parts[0].text;
+          
+          // Exibe o retorno da IA na área de diagnóstico
+          document.getElementById('debugTexto').value = textoResposta;
+          document.getElementById('cardDebug').style.display = 'block';
+
+          // Tenta extrair o JSON enviado pela IA
+          const jsonMatch = textoResposta.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const resultadoIA = JSON.parse(jsonMatch[0]);
+            const valorNum = parseFloat(resultadoIA.valor);
+            let tipoPag = (resultadoIA.tipo || 'CRÉDITO').toUpperCase();
+
+            if (!['DÉBITO', 'CRÉDITO', 'PIX', 'VOUCHER'].includes(tipoPag)) {
+              tipoPag = 'CRÉDITO';
+            }
+
+            if (!isNaN(valorNum) && valorNum > 0) {
+              lancamentos.push({
+                id: Date.now(),
+                tipo: tipoPag,
+                valor: valorNum,
+                hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+              });
+              salvarEAtualizar();
+            } else {
+              alert("Não foi possível identificar o valor no comprovante.");
+            }
+          } else {
+            alert("A IA não retornou um formato válido. Verifique a área de diagnóstico.");
+          }
         } else if (data.error) {
-          resultado.innerText = "Erro na API: " + data.error.message;
+          alert("Erro na API: " + data.error.message);
         } else {
-          resultado.innerText = "Não foi possível extrair os dados. Verifique a imagem ou a chave inserida.";
+          alert("Não foi possível ler o comprovante.");
         }
 
-      } catch (erro) {
-        console.error(erro);
-        resultado.innerText = "Erro ao processar o comprovante. Verifique sua conexão e a chave inserida.";
+      } catch (err) {
+        console.error(err);
+        alert("Erro no processamento da imagem com IA.");
       } finally {
         status.style.display = 'none';
         input.value = '';
       }
     }
+
+    function otimizarImagemParaOCR(file) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.getElementById('canvasAux');
+          const ctx = canvas.getContext('2d');
+          
+          const maxDim = 1200;
+          let w = img.width;
+          let h = img.height;
+
+          if (w > maxDim || h > maxDim) {
+            if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
+            else { w = Math.round((w * maxDim) / h); h = maxDim; }
+          }
+
+          canvas.width = w;
+          canvas.height = h;
+          ctx.drawImage(img, 0, 0, w, h);
+
+          const imgData = ctx.getImageData(0, 0, w, h);
+          const data = imgData.data;
+
+          // Processamento leve para contraste sem apagar letras finas
+          for (let i = 0; i < data.length; i += 4) {
+            let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+            gray = ((gray - 128) * 1.5) + 128;
+            gray = Math.min(255, Math.max(0, gray));
+            data[i] = gray;
+            data[i + 1] = gray;
+            data[i + 2] = gray;
+          }
+
+          ctx.putImageData(imgData, 0, 0);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    function salvarManual() {
+      const valorStr = document.getElementById('inputValor').value;
+      if (!valorStr) return alert('Digite um valor!');
+
+      const valorNum = parseFloat(valorStr.replace('R$', '').replace(/\./g, '').replace(',', '.').trim());
+      if (isNaN(valorNum) || valorNum <= 0) return alert('Valor inválido!');
+
+      lancamentos.push({
+        id: Date.now(),
+        tipo: document.getElementById('selectTipo').value,
+        valor: valorNum,
+        hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+      });
+
+      salvarEAtualizar();
+      fecharModalManual();
+    }
+
+    function removerItem(id) {
+      lancamentos = lancamentos.filter(item => item.id !== id);
+      salvarEAtualizar();
+    }
+
+    function salvarEAtualizar() {
+      localStorage.setItem('lancamentos', JSON.stringify(lancamentos));
+      atualizarTela();
+    }
+
+    function atualizarTela() {
+      const lista = document.getElementById('listaLancamentos');
+      lista.innerHTML = '';
+
+      let debito = 0, credito = 0, pix = 0, voucher = 0;
+
+      lancamentos.forEach((item) => {
+        if (item.tipo === 'DÉBITO') debito += item.valor;
+        if (item.tipo === 'CRÉDITO') credito += item.valor;
+        if (item.tipo === 'PIX') pix += item.valor;
+        if (item.tipo === 'VOUCHER') voucher += item.valor;
+
+        const li = document.createElement('li');
+        li.className = 'list-item';
+        li.innerHTML = `
+          <div class="item-info">
+            <strong>${item.tipo}</strong>
+            <small>${item.hora}</small>
+          </div>
+          <div class="item-actions">
+            <strong>R$ ${item.valor.toFixed(2).replace('.', ',')}</strong>
+            <button class="btn-danger" onclick="removerItem(${item.id})">✕</button>
+          </div>
+        `;
+        lista.appendChild(li);
+      });
+
+      document.getElementById('totalDebito').innerText = `R$ ${debito.toFixed(2).replace('.', ',')}`;
+      document.getElementById('totalCredito').innerText = `R$ ${credito.toFixed(2).replace('.', ',')}`;
+      document.getElementById('totalPix').innerText = `R$ ${pix.toFixed(2).replace('.', ',')}`;
+      document.getElementById('totalVoucher').innerText = `R$ ${voucher.toFixed(2).replace('.', ',')}`;
+      
+      const totalGeral = debito + credito + pix + voucher;
+      document.getElementById('totalGeral').innerText = `R$ ${totalGeral.toFixed(2).replace('.', ',')}`;
+      document.getElementById('qtdItens').innerText = `${lancamentos.length} ${lancamentos.length === 1 ? 'item' : 'itens'}`;
+    }
+
+    function limparTudo() {
+      if (lancamentos.length === 0) return;
+      if (confirm('Deseja apagar todos os lançamentos do caixa?')) {
+        lancamentos = [];
+        salvarEAtualizar();
+      }
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+
+    atualizarTela();
   </script>
 </body>
 </html>
