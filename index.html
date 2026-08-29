@@ -76,7 +76,7 @@
     <div class="actions-grid">
       <label class="btn btn-primary">
         📷 Escanear Comprovante
-        <input type="file" accept="image/*" capture="environment" id="cameraInput" onchange="processarImagem(this)">
+        <input type="file" accept="image/*" id="cameraInput" onchange="processarImagem(this)">
       </label>
       <button class="btn btn-outline" onclick="abrirModalManual()">➕ Manual</button>
     </div>
@@ -278,16 +278,15 @@ Retorne EXATAMENTE e APENAS o JSON no formato: {"valor": 00.00, "tipo": "TIPO"}`
 
       } catch (err) {
         console.error(err);
-        alert("Erro ao processar a imagem. Tente tirar a foto novamente.");
+        alert("Erro ao processar a imagem. Tente selecionar a imagem novamente.");
       } finally {
         status.style.display = 'none';
         input.value = '';
       }
     }
 
-    // Redimensionamento eficiente em memória para evitar o erro de falta de memória RAM
     async function comprimirImagemParaBase64(file) {
-      const targetWidth = 1000;
+      const targetWidth = 800;
       let bitmap;
       
       try {
@@ -307,7 +306,7 @@ Retorne EXATAMENTE e APENAS o JSON no formato: {"valor": 00.00, "tipo": "TIPO"}`
       const ctx = canvas.getContext('2d');
       ctx.drawImage(bitmap, 0, 0, width, height);
 
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.80);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
       bitmap.close();
       
       return dataUrl.split(',')[1];
