@@ -6,7 +6,6 @@
   <title>ReciboBox</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2563eb">
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
     body { background: #f1f5f9; color: #1e293b; padding: 16px; max-width: 500px; margin: 0 auto; -webkit-tap-highlight-color: transparent; padding-top: 10px; }
@@ -60,7 +59,6 @@
     .form-control:focus { border-color: #2563eb; }
     .modal-buttons { display: flex; gap: 8px; margin-top: 16px; }
 
-    /* Área de Diagnóstico */
     .debug-area { margin-top: 12px; display: none; }
     .debug-area textarea { width: 100%; height: 90px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; font-size: 0.75rem; color: #475569; font-family: monospace; }
   </style>
@@ -109,13 +107,11 @@
     <button class="btn btn-secondary" onclick="limparTudo()">Zerar Caixa</button>
   </div>
 
-  <!-- Diagnóstico de Leitura -->
   <div class="card debug-area" id="cardDebug">
-    <h2 style="font-size: 0.9rem; color: #64748b; margin-bottom: 6px;">🔍 Texto Lido da Última Foto (Diagnóstico):</h2>
-    <textarea id="debugTexto" readonly placeholder="O texto reconhecido aparecerá aqui..."></textarea>
+    <h2 style="font-size: 0.9rem; color: #64748b; margin-bottom: 6px;">🔍 Resposta da IA (Diagnóstico):</h2>
+    <textarea id="debugTexto" readonly placeholder="O resultado aparecerá aqui..."></textarea>
   </div>
 
-  <!-- Modal Manual -->
   <div class="modal-overlay" id="modalManual">
     <div class="modal">
       <h3>Inserir Lançamento Manual</h3>
@@ -215,10 +211,8 @@
       status.innerText = "🤖 Lendo comprovante com IA...";
 
       try {
-        const imagemTratadaBase64 = await otimizarImagemParaOCR(input.files[0]);
-        const base64Limpo = imagemTratadaBase64.split(',')[1];
+        const base64Limpo = await comprimirImagemParaBase64(input.files[0]);
 
-        // Prompt especializado nos comprovantes do posto/loja de conveniência
         const promptIA = `Analise a foto deste comprovante de pagamento impresso (Stone, Cielo, Ticket Log, Goodcard, Payly ou similar).
 1. Extraia o VALOR TOTAL final do pagamento em números decimais (ex: 120.00, 20.00, 267.56, 66.90, 34.95).
 2. Classifique o TIPO em um dos 4 grupos abaixo:
@@ -284,37 +278,39 @@ Retorne EXATAMENTE e APENAS o JSON no formato: {"valor": 00.00, "tipo": "TIPO"}`
 
       } catch (err) {
         console.error(err);
-        alert("Erro no processamento da imagem com IA. Verifique sua conexão e a chave de API.");
+        alert("Erro ao processar a imagem. Tente tirar a foto novamente.");
       } finally {
         status.style.display = 'none';
         input.value = '';
       }
     }
 
-    function otimizarImagemParaOCR(file) {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.getElementById('canvasAux');
-          const ctx = canvas.getContext('2d');
-          
-          const maxDim = 1600;
-          let w = img.width;
-          let h = img.height;
+    // Redimensionamento eficiente em memória para evitar o erro de falta de memória RAM
+    async function comprimirImagemParaBase64(file) {
+      const targetWidth = 1000;
+      let bitmap;
+      
+      try {
+        bitmap = await createImageBitmap(file, { resizeWidth: targetWidth });
+      } catch (e) {
+        bitmap = await createImageBitmap(file);
+      }
 
-          if (w > maxDim || h > maxDim) {
-            if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
-            else { w = Math.round((w * maxDim) / h); h = maxDim; }
-          }
+      const canvas = document.getElementById('canvasAux');
+      const scale = targetWidth / bitmap.width;
+      const width = targetWidth;
+      const height = bitmap.height * (scale < 1 ? scale : 1);
 
-          canvas.width = w;
-          canvas.height = h;
-          ctx.drawImage(img, 0, 0, w, h);
+      canvas.width = width;
+      canvas.height = height;
 
-          resolve(canvas.toDataURL('image/jpeg', 0.90));
-        };
-        img.src = URL.createObjectURL(file);
-      });
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bitmap, 0, 0, width, height);
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.80);
+      bitmap.close();
+      
+      return dataUrl.split(',')[1];
     }
 
     function salvarManual() {
