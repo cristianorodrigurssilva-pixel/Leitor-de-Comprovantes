@@ -62,6 +62,8 @@
     /* Modal Câmera */
     #cameraStreamContainer { width: 100%; height: 320px; background: #000; border-radius: 10px; overflow: hidden; position: relative; }
     #videoElement { width: 100%; height: 100%; object-fit: cover; }
+    
+    .btn-torch { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); color: #fff; border: 1px solid rgba(255,255,255,0.4); padding: 8px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; cursor: pointer; z-index: 10; display: none; }
 
     .debug-area { margin-top: 12px; display: none; }
     .debug-area textarea { width: 100%; height: 90px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; font-size: 0.75rem; color: #475569; font-family: monospace; }
@@ -118,6 +120,7 @@
     <div class="modal">
       <h3>Posicione o Comprovante</h3>
       <div id="cameraStreamContainer">
+        <button id="btnTorch" class="btn-torch" onclick="alternarLanterna()">🔦 Lanterna</button>
         <video id="videoElement" autoplay playsinline muted></video>
       </div>
       <button class="btn btn-capture" onclick="capturarFotoEReconhecer()">📸 Fotografar e Ler</button>
@@ -154,6 +157,8 @@
   <script>
     let deferredPrompt;
     let activeStream = null;
+    let trackVideo = null;
+    let lanternaLigada = false;
     const installArea = document.getElementById('installArea');
     const btnInstall = document.getElementById('btnInstall');
 
@@ -215,14 +220,34 @@
       const apiKey = obterChaveIA();
       if (!apiKey) return alert("Por favor, informe a chave da API do Gemini.");
 
+      lanternaLigada = false;
+      const btnTorch = document.getElementById('btnTorch');
+      btnTorch.style.display = 'none';
+
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { exact: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }
-        }).catch(() => {
+        const constraints = {
+          video: {
+            facingMode: { exact: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            focusMode: { ideal: "continuous" }
+          }
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints).catch(() => {
           return navigator.mediaDevices.getUserMedia({ video: true });
         });
 
         activeStream = stream;
+        trackVideo = stream.getVideoTracks()[0];
+
+        if (trackVideo) {
+          const capabilities = trackVideo.getCapabilities ? trackVideo.getCapabilities() : {};
+          if (capabilities.torch) {
+            btnTorch.style.display = 'block';
+          }
+        }
+
         const video = document.getElementById('videoElement');
         video.srcObject = stream;
         document.getElementById('modalCamera').style.display = 'flex';
@@ -231,10 +256,24 @@
       }
     }
 
+    async function alternarLanterna() {
+      if (!trackVideo) return;
+      lanternaLigada = !lanternaLigada;
+      try {
+        await trackVideo.applyConstraints({
+          advanced: [{ torch: lanternaLigada }]
+        });
+        document.getElementById('btnTorch').innerText = lanternaLigada ? "🔦 Desligar" : "🔦 Lanterna";
+      } catch (e) {
+        console.error("Erro ao alternar lanterna:", e);
+      }
+    }
+
     function fecharCameraDireta() {
       if (activeStream) {
         activeStream.getTracks().forEach(track => track.stop());
         activeStream = null;
+        trackVideo = null;
       }
       document.getElementById('modalCamera').style.display = 'none';
     }
@@ -312,6 +351,11 @@ Retorne EXATAMENTE e APENAS o JSON no formato: {"valor": 00.00, "tipo": "TIPO"}`
                 valor: valorNum,
                 hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
               });
+              
+              if (navigator.vibrate) {
+                navigator.vibrate([150]);
+              }
+
               salvarEAtualizar();
             } else {
               alert("Não foi possível identificar o valor no comprovante.");
