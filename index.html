@@ -24,9 +24,8 @@
     .btn-outline { background: #f8fafc; color: #2563eb; border: 1.5px solid #cbd5e1; }
     .btn-secondary { background: #e2e8f0; color: #334155; margin-top: 12px; }
     .btn-danger { background: #fee2e2; color: #991b1b; padding: 4px 8px; font-size: 0.8rem; border-radius: 6px; border: none; cursor: pointer; }
+    .btn-capture { background: #22c55e; color: white; font-size: 1.1rem; padding: 16px; margin-top: 10px; }
     
-    input[type="file"] { display: none; }
-
     .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
     .summary-box { background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0; }
     .summary-box span { display: block; font-size: 0.82rem; color: #64748b; font-weight: 500; }
@@ -50,7 +49,8 @@
     
     .status { text-align: center; color: #2563eb; font-weight: 600; font-size: 0.88rem; margin-top: 10px; display: none; }
 
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
+    /* Modal Generico */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
     .modal { background: white; padding: 20px; border-radius: 14px; width: 100%; max-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
     .modal h3 { font-size: 1.1rem; margin-bottom: 12px; color: #0f172a; }
     .form-group { margin-bottom: 12px; }
@@ -58,6 +58,10 @@
     .form-control { width: 100%; padding: 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 1.1rem; font-weight: bold; outline: none; }
     .form-control:focus { border-color: #2563eb; }
     .modal-buttons { display: flex; gap: 8px; margin-top: 16px; }
+
+    /* Modal Câmera */
+    #cameraStreamContainer { width: 100%; height: 320px; background: #000; border-radius: 10px; overflow: hidden; position: relative; }
+    #videoElement { width: 100%; height: 100%; object-fit: cover; }
 
     .debug-area { margin-top: 12px; display: none; }
     .debug-area textarea { width: 100%; height: 90px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; font-size: 0.75rem; color: #475569; font-family: monospace; }
@@ -74,10 +78,7 @@
 
   <div class="card">
     <div class="actions-grid">
-      <label class="btn btn-primary">
-        📷 Escanear Comprovante
-        <input type="file" accept="image/*" id="cameraInput" onchange="processarImagem(this)">
-      </label>
+      <button class="btn btn-primary" onclick="abrirCameraDireta()">📷 Escanear Comprovante</button>
       <button class="btn btn-outline" onclick="abrirModalManual()">➕ Manual</button>
     </div>
     <div id="status" class="status">⚡ Processando imagem...</div>
@@ -112,6 +113,19 @@
     <textarea id="debugTexto" readonly placeholder="O resultado aparecerá aqui..."></textarea>
   </div>
 
+  <!-- Modal da Câmera Direta -->
+  <div class="modal-overlay" id="modalCamera">
+    <div class="modal">
+      <h3>Posicione o Comprovante</h3>
+      <div id="cameraStreamContainer">
+        <video id="videoElement" autoplay playsinline muted></video>
+      </div>
+      <button class="btn btn-capture" onclick="capturarFotoEReconhecer()">📸 Fotografar e Ler</button>
+      <button class="btn btn-secondary" onclick="fecharCameraDireta()">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Modal Manual -->
   <div class="modal-overlay" id="modalManual">
     <div class="modal">
       <h3>Inserir Lançamento Manual</h3>
@@ -139,6 +153,7 @@
 
   <script>
     let deferredPrompt;
+    let activeStream = null;
     const installArea = document.getElementById('installArea');
     const btnInstall = document.getElementById('btnInstall');
 
@@ -196,23 +211,57 @@
       }
     }
 
-    async function processarImagem(input) {
-      if (!input.files || !input.files[0]) return;
-
+    async function abrirCameraDireta() {
       const apiKey = obterChaveIA();
-      if (!apiKey) {
-        alert("Você precisa informar a chave para usar a leitura por IA.");
-        input.value = '';
-        return;
-      }
+      if (!apiKey) return alert("Por favor, informe a chave da API do Gemini.");
 
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { exact: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        }).catch(() => {
+          return navigator.mediaDevices.getUserMedia({ video: true });
+        });
+
+        activeStream = stream;
+        const video = document.getElementById('videoElement');
+        video.srcObject = stream;
+        document.getElementById('modalCamera').style.display = 'flex';
+      } catch (err) {
+        alert("Não foi possível acessar a câmera do dispositivo.");
+      }
+    }
+
+    function fecharCameraDireta() {
+      if (activeStream) {
+        activeStream.getTracks().forEach(track => track.stop());
+        activeStream = null;
+      }
+      document.getElementById('modalCamera').style.display = 'none';
+    }
+
+    async function capturarFotoEReconhecer() {
+      const video = document.getElementById('videoElement');
+      const canvas = document.getElementById('canvasAux');
+      const ctx = canvas.getContext('2d');
+
+      canvas.width = video.videoWidth || 800;
+      canvas.height = video.videoHeight || 600;
+
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.80);
+      const base64Limpo = dataUrl.split(',')[1];
+
+      fecharCameraDireta();
+      await enviarParaIA(base64Limpo);
+    }
+
+    async function enviarParaIA(base64Limpo) {
+      const apiKey = obterChaveIA();
       const status = document.getElementById('status');
       status.style.display = 'block';
       status.innerText = "🤖 Lendo comprovante com IA...";
 
       try {
-        const base64Limpo = await comprimirImagemParaBase64(input.files[0]);
-
         const promptIA = `Analise a foto deste comprovante de pagamento impresso (Stone, Cielo, Ticket Log, Goodcard, Payly ou similar).
 1. Extraia o VALOR TOTAL final do pagamento em números decimais (ex: 120.00, 20.00, 267.56, 66.90, 34.95).
 2. Classifique o TIPO em um dos 4 grupos abaixo:
@@ -223,7 +272,7 @@
 
 Retorne EXATAMENTE e APENAS o JSON no formato: {"valor": 00.00, "tipo": "TIPO"}`;
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -278,38 +327,10 @@ Retorne EXATAMENTE e APENAS o JSON no formato: {"valor": 00.00, "tipo": "TIPO"}`
 
       } catch (err) {
         console.error(err);
-        alert("Erro ao processar a imagem. Tente selecionar a imagem novamente.");
+        alert("Erro no processamento da imagem.");
       } finally {
         status.style.display = 'none';
-        input.value = '';
       }
-    }
-
-    async function comprimirImagemParaBase64(file) {
-      const targetWidth = 800;
-      let bitmap;
-      
-      try {
-        bitmap = await createImageBitmap(file, { resizeWidth: targetWidth });
-      } catch (e) {
-        bitmap = await createImageBitmap(file);
-      }
-
-      const canvas = document.getElementById('canvasAux');
-      const scale = targetWidth / bitmap.width;
-      const width = targetWidth;
-      const height = bitmap.height * (scale < 1 ? scale : 1);
-
-      canvas.width = width;
-      canvas.height = height;
-
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(bitmap, 0, 0, width, height);
-
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
-      bitmap.close();
-      
-      return dataUrl.split(',')[1];
     }
 
     function salvarManual() {
