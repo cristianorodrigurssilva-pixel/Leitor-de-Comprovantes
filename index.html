@@ -266,7 +266,7 @@
       status.style.display = 'block';
       status.innerText = "⚡ Enviando e lendo...";
 
-      const promptIA = `Analise o comprovante e retorne APENAS um JSON no seguinte formato exato: {"valor": 00.00, "tipo": "TIPO"}. O tipo deve ser DÉBITO, CRÉDITO, PIX ou VOUCHER.`;
+      const promptIA = `Analise o comprovante e retorne APENAS um JSON no seguinte formato: {"valor": 00.00, "tipo": "TIPO"}. O tipo deve ser DÉBITO, CRÉDITO, PIX ou VOUCHER.`;
 
       let sucesso = false;
       let ultimoErro = "";
@@ -274,60 +274,61 @@
       for (let i = 0; i < chaves.length; i++) {
         let key = chaves[i];
         try {
-          // Utilizando o modelo gemini-2.5-flash na v1beta
           const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
           
           const response = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json'
+            },
             body: JSON.stringify({
               contents: [{
                 parts: [
                   { text: promptIA },
-                  { inline_data: { mime_type: "image/jpeg", data: base64Limpo } }
+                  { inlineData: { mimeType: "image/jpeg", data: base64Limpo } }
                 ]
-              }]
+              }],
+              generationConfig: {
+                responseMimeType: "application/json"
+              }
             })
           });
 
           const data = await response.json();
 
-          if (response.ok && data.candidates && data.candidates[0].content.parts[0].text) {
-            let texto = data.candidates[0].content.parts[0].text.replace(/```json/g, '').replace(/```/g, '').trim();
-            const jsonMatch = texto.match(/\{[\s\S]*\}/);
+          if (response.ok && data.candidates && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
+            let texto = data.candidates[0].content.parts[0].text.trim();
+            const res = JSON.parse(texto);
+            
+            const valorNum = parseFloat(res.valor);
+            let tipoPag = (res.tipo || 'CRÉDITO').toUpperCase();
 
-            if (jsonMatch) {
-              const res = JSON.parse(jsonMatch[0]);
-              const valorNum = parseFloat(res.valor);
-              let tipoPag = (res.tipo || 'CRÉDITO').toUpperCase();
+            if (!['DÉBITO', 'CRÉDITO', 'PIX', 'VOUCHER'].includes(tipoPag)) tipoPag = 'CRÉDITO';
 
-              if (!['DÉBITO', 'CRÉDITO', 'PIX', 'VOUCHER'].includes(tipoPag)) tipoPag = 'CRÉDITO';
-
-              if (!isNaN(valorNum) && valorNum > 0) {
-                lancamentos.push({
-                  id: Date.now(),
-                  tipo: tipoPag,
-                  valor: valorNum,
-                  hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-                });
-                if (navigator.vibrate) navigator.vibrate(120);
-                salvarEAtualizar();
-                sucesso = true;
-                break;
-              }
+            if (!isNaN(valorNum) && valorNum > 0) {
+              lancamentos.push({
+                id: Date.now(),
+                tipo: tipoPag,
+                valor: valorNum,
+                hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+              });
+              if (navigator.vibrate) navigator.vibrate(120);
+              salvarEAtualizar();
+              sucesso = true;
+              break;
             }
           } else {
             if (data.error) {
-              ultimoErro = `Chave ${i+1}: ${data.error.message || data.error.status}`;
+              ultimoErro = `Erro (${data.error.code}): ${data.error.message}`;
             }
           }
         } catch (err) {
-          ultimoErro = `Erro de conexao na tentativa ${i+1}`;
+          ultimoErro = `Erro de conexão na tentativa ${i+1}`;
         }
       }
 
       if (!sucesso) {
-        alert(`Falha na leitura automática.\nDetalhe: ${ultimoErro || "Verifique suas chaves de API."}`);
+        alert(`Falha no reconhecimento.\n${ultimoErro || "Verifique se a sua chave de API está ativa e correta."}`);
       }
 
       status.style.display = 'none';
