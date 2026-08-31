@@ -1,491 +1,412 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ReciboBox Pro</title>
-    <style>
-        :root {
-            --primary-color: #1a365d;
-            --secondary-color: #2b6cb0;
-            --bg-color: #f7fafc;
-            --card-bg: #ffffff;
-            --text-color: #2d3748;
-            --border-radius: 12px;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ReciboBox Pro</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2563eb">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: #f1f5f9; color: #1e293b; padding: 16px; max-width: 500px; margin: 0 auto; -webkit-tap-highlight-color: transparent; padding-top: 10px; }
+    
+    #installArea { display: none; background: #fee2e2; border: 1.5px solid #ef4444; padding: 12px; border-radius: 12px; margin-bottom: 16px; text-align: center; }
+    #installArea p { color: #991b1b; font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; }
+    .btn-install { background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.9rem; }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            padding: 20px 12px;
-            display: flex;
-            justify-content: center;
-        }
+    h1 { font-size: 1.3rem; text-align: center; margin-bottom: 16px; color: #0f172a; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    
+    .card { background: white; padding: 16px; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); margin-bottom: 16px; }
+    .actions-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
+    
+    .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 0.98rem; font-weight: 700; cursor: pointer; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-outline { background: #f8fafc; color: #2563eb; border: 1.5px solid #cbd5e1; }
+    .btn-secondary { background: #e2e8f0; color: #334155; margin-top: 12px; }
+    .btn-danger { background: #fee2e2; color: #991b1b; padding: 4px 8px; font-size: 0.8rem; border-radius: 6px; border: none; cursor: pointer; }
+    .btn-capture { background: #22c55e; color: white; font-size: 1.1rem; padding: 16px; margin-top: 10px; }
+    
+    .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .summary-box { background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0; }
+    .summary-box span { display: block; font-size: 0.82rem; color: #64748b; font-weight: 500; }
+    .summary-box strong { font-size: 1.15rem; color: #0f172a; display: block; margin-top: 2px; }
 
-        .container {
-            width: 100%;
-            max-width: 480px;
-            background: var(--card-bg);
-            border-radius: var(--border-radius);
-            padding: 20px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
+    .total-box { background: #eff6ff; border: 1.5px solid #bfdbfe; padding: 14px; border-radius: 10px; text-align: center; margin-top: 12px; }
+    .total-box span { font-size: 0.85rem; color: #1e40af; font-weight: 700; letter-spacing: 0.5px; }
+    .total-box strong { display: block; font-size: 1.8rem; color: #1e3a8a; margin-top: 2px; }
 
-        header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
+    .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .list-header h2 { font-size: 1.1rem; color: #0f172a; }
+    .badge { background: #e2e8f0; color: #334155; font-size: 0.78rem; padding: 3px 8px; border-radius: 12px; font-weight: 600; }
 
-        header h1 {
-            margin: 0;
-            font-size: 1.5rem;
-            color: var(--primary-color);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
+    .list { list-style: none; max-height: 260px; overflow-y: auto; }
+    .list-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+    .item-info { display: flex; flex-direction: column; }
+    .item-info strong { font-size: 0.95rem; color: #1e293b; }
+    .item-info small { font-size: 0.75rem; color: #94a3b8; }
+    .item-actions { display: flex; align-items: center; gap: 10px; }
+    .item-actions strong { font-size: 0.98rem; color: #0f172a; }
+    
+    .status { text-align: center; color: #2563eb; font-weight: 600; font-size: 0.88rem; margin-top: 10px; display: none; }
 
-        .actions {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
+    .modal { background: white; padding: 20px; border-radius: 14px; width: 100%; max-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+    .modal h3 { font-size: 1.1rem; margin-bottom: 12px; color: #0f172a; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 4px; font-weight: 600; }
+    .form-control { width: 100%; padding: 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 1.1rem; font-weight: bold; outline: none; }
+    .form-control:focus { border-color: #2563eb; }
+    .modal-buttons { display: flex; gap: 8px; margin-top: 16px; }
 
-        .btn {
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-size: 0.95rem;
-            transition: background-color 0.2s;
-        }
-
-        .btn:hover {
-            background-color: var(--secondary-color);
-        }
-
-        .btn-secondary {
-            background-color: #e2e8f0;
-            color: var(--text-color);
-        }
-
-        .btn-secondary:hover {
-            background-color: #cbd5e0;
-        }
-
-        .btn-danger {
-            background-color: #e53e3e;
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background-color: #c53030;
-        }
-
-        .status {
-            text-align: center;
-            font-size: 0.9rem;
-            color: var(--secondary-color);
-            font-weight: 500;
-            margin: 10px 0;
-            min-height: 20px;
-        }
-
-        .section-title {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin: 20px 0 10px 0;
-            border-bottom: 2px solid #edf2f7;
-            padding-bottom: 8px;
-        }
-
-        .section-title h2 {
-            margin: 0;
-            font-size: 1.1rem;
-            color: var(--primary-color);
-        }
-
-        .badge {
-            background: #e2e8f0;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.8rem;
-        }
-
-        .items-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            max-height: 350px;
-            overflow-y: auto;
-            margin-bottom: 20px;
-        }
-
-        .item-card {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 10px 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .item-info {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-
-        .item-title {
-            font-weight: 600;
-            font-size: 0.95rem;
-        }
-
-        .item-date {
-            font-size: 0.75rem;
-            color: #718096;
-        }
-
-        .item-val {
-            font-weight: bold;
-            color: #2b6cb0;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        .modal-content {
-            background: white;
-            padding: 20px;
-            border-radius: var(--border-radius);
-            width: 90%;
-            max-width: 400px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .modal-content input {
-            padding: 10px;
-            border: 1px solid #cbd5e0;
-            border-radius: 6px;
-            font-size: 1rem;
-        }
-
-        .modal-buttons {
-            display: flex;
-            justify-content: flex-end;
-            gap: 8px;
-            margin-top: 10px;
-        }
-
-        input[type="file"] {
-            display: none;
-        }
-    </style>
+    #cameraStreamContainer { width: 100%; height: 320px; background: #000; border-radius: 10px; overflow: hidden; position: relative; }
+    #videoElement { width: 100%; height: 100%; object-fit: cover; }
+    
+    .btn-torch { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); color: #fff; border: 1px solid rgba(255,255,255,0.4); padding: 8px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; cursor: pointer; z-index: 10; display: none; }
+  </style>
 </head>
 <body>
 
-    <div class="container">
-        <header>
-            <h1>🧾 ReciboBox Pro</h1>
-        </header>
+  <div id="installArea">
+    <p>⚡ Instale o ReciboBox para usar offline!</p>
+    <button class="btn-install" id="btnInstall">Instalar ReciboBox</button>
+  </div>
 
-        <div class="actions">
-            <button class="btn" onclick="document.getElementById('fileInput').click()">
-                📷 Escancear Comprovante
-            </button>
-            <button class="btn btn-secondary" onclick="abrirModalManual()">
-                ➕ Manual
-            </button>
-        </div>
+  <h1>🧾 ReciboBox Pro</h1>
 
-        <input type="file" id="fileInput" accept="image/*" capture="environment" onchange="processarImagem(event)">
-
-        <div class="status" id="statusMsg"></div>
-
-        <button class="btn btn-secondary" style="width: 100%;" onclick="abrirModalChaves()">
-            ⚙️ Gerenciar Chaves da IA
-        </button>
-
-        <div class="section-title">
-            <h2>Lançamentos</h2>
-            <span class="badge" id="totalItems">0 itens</span>
-        </div>
-
-        <div class="items-list" id="itemsList"></div>
-
-        <button class="btn btn-danger" style="width: 100%;" onclick="zerarCaixa()">
-            Zerar Caixa
-        </button>
+  <div class="card">
+    <div class="actions-grid">
+      <button class="btn btn-primary" onclick="abrirCameraDireta()">📷 Escanear Comprovante</button>
+      <button class="btn btn-outline" onclick="abrirModalManual()">➕ Manual</button>
     </div>
+    <div id="status" class="status">⚡ Processando imagem...</div>
+    <button class="btn btn-secondary" style="font-size: 0.8rem; padding: 8px;" onclick="configurarChavesIA()">⚙️ Gerenciar Chaves da IA</button>
+  </div>
 
-    <!-- Modal Adicionar Manual -->
-    <div class="modal" id="modalManual">
-        <div class="modal-content">
-            <h3>Adicionar Lançamento</h3>
-            <input type="text" id="descManual" placeholder="Descrição (ex: Mercado)">
-            <input type="number" step="0.01" id="valManual" placeholder="Valor (ex: 45.50)">
-            <div class="modal-buttons">
-                <button class="btn btn-secondary" onclick="fecharModal('modalManual')">Cancelar</button>
-                <button class="btn" onclick="salvarManual()">Salvar</button>
-            </div>
-        </div>
+  <div class="card">
+    <h2 style="font-size: 1.1rem; color: #0f172a;">Resumo do Caixa</h2>
+    <div class="summary">
+      <div class="summary-box"><span>Débito</span><strong id="totalDebito">R$ 0,00</strong></div>
+      <div class="summary-box"><span>Crédito</span><strong id="totalCredito">R$ 0,00</strong></div>
+      <div class="summary-box"><span>Pix</span><strong id="totalPix">R$ 0,00</strong></div>
+      <div class="summary-box"><span>Voucher/VR</span><strong id="totalVoucher">R$ 0,00</strong></div>
     </div>
-
-    <!-- Modal Gerenciar Chaves -->
-    <div class="modal" id="modalChaves">
-        <div class="modal-content">
-            <h3>Chaves de API Gemini</h3>
-            <p style="font-size: 0.8rem; color: #718096; margin: 0;">Insira até 3 chaves para rotação automática em caso de limite de cota.</p>
-            <input type="text" id="key1" placeholder="Chave de API 1">
-            <input type="text" id="key2" placeholder="Chave de API 2 (Opcional)">
-            <input type="text" id="key3" placeholder="Chave de API 3 (Opcional)">
-            <div class="modal-buttons">
-                <button class="btn btn-secondary" onclick="fecharModal('modalChaves')">Cancelar</button>
-                <button class="btn" onclick="salvarChaves()">Salvar</button>
-            </div>
-        </div>
+    <div class="total-box">
+      <span>TOTAL GERAL</span>
+      <strong id="totalGeral">R$ 0,00</strong>
     </div>
+  </div>
 
-    <script>
-        let lancamentos = JSON.parse(localStorage.getItem('recibobox_lancamentos')) || [];
-        let chavesAPI = JSON.parse(localStorage.getItem('recibobox_chaves')) || ['', '', ''];
-        let indiceChaveAtual = 0;
+  <div class="card">
+    <div class="list-header">
+      <h2>Lançamentos</h2>
+      <span class="badge" id="qtdItens">0 itens</span>
+    </div>
+    <ul id="listaLancamentos" class="list"></ul>
+    <button class="btn btn-secondary" onclick="limparTudo()">Zerar Caixa</button>
+  </div>
 
-        document.addEventListener('DOMContentLoaded', () => {
-            renderizarLista();
-            carregarChavesInputs();
-        });
+  <!-- Modal Camera -->
+  <div class="modal-overlay" id="modalCamera">
+    <div class="modal">
+      <h3>Posicione o Comprovante</h3>
+      <div id="cameraStreamContainer">
+        <button id="btnTorch" class="btn-torch" onclick="alternarLanterna()">🔦 Lanterna</button>
+        <video id="videoElement" autoplay playsinline muted></video>
+      </div>
+      <button class="btn btn-capture" onclick="capturarFotoEReconhecer()">📸 Fotografar e Ler</button>
+      <button class="btn btn-secondary" onclick="fecharCameraDireta()">Cancelar</button>
+    </div>
+  </div>
 
-        function salvarLocalStorage() {
-            localStorage.setItem('recibobox_lancamentos', JSON.stringify(lancamentos));
-            renderizarLista();
+  <!-- Modal Manual -->
+  <div class="modal-overlay" id="modalManual">
+    <div class="modal">
+      <h3>Inserir Lançamento Manual</h3>
+      <div class="form-group">
+        <label>Valor (R$)</label>
+        <input type="text" id="inputValor" class="form-control" inputmode="numeric" placeholder="R$ 0,00" oninput="aplicarMascaraMoeda(this)">
+      </div>
+      <div class="form-group">
+        <label>Tipo de Pagamento</label>
+        <select id="selectTipo" class="form-control" style="font-size:0.95rem; font-weight:normal;">
+          <option value="DÉBITO">Débito</option>
+          <option value="CRÉDITO" selected>Crédito</option>
+          <option value="PIX">Pix</option>
+          <option value="VOUCHER">Voucher / VR</option>
+        </select>
+      </div>
+      <div class="modal-buttons">
+        <button class="btn btn-secondary" style="margin-top:0;" onclick="fecharModalManual()">Cancelar</button>
+        <button class="btn btn-primary" onclick="salvarManual()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="canvasAux" style="display:none;"></canvas>
+
+  <script>
+    let activeStream = null;
+    let trackVideo = null;
+    let lanternaLigada = false;
+    let lancamentos = JSON.parse(localStorage.getItem('lancamentos') || '[]');
+
+    function obterChavesIA() {
+      let keys = localStorage.getItem('GEMINI_API_KEYS');
+      if (!keys) {
+        let keyInput = prompt("Cole suas chaves API do Gemini separadas por vírgula:");
+        if (keyInput) {
+          keys = keyInput.trim();
+          localStorage.setItem('GEMINI_API_KEYS', keys);
+        }
+      }
+      return keys ? keys.split(',').map(k => k.trim()).filter(k => k.length > 10) : [];
+    }
+
+    function configurarChavesIA() {
+      let atuais = localStorage.getItem('GEMINI_API_KEYS') || '';
+      let novas = prompt("Digite suas chaves da API Gemini separadas por vírgula:", atuais);
+      if (novas !== null) {
+        localStorage.setItem('GEMINI_API_KEYS', novas.trim());
+        alert("Chaves atualizadas com sucesso!");
+      }
+    }
+
+    function aplicarMascaraMoeda(input) {
+      let valor = input.value.replace(/\D/g, '');
+      if (valor === '') { input.value = ''; return; }
+      valor = (parseInt(valor, 10) / 100).toFixed(2);
+      valor = valor.replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+      input.value = 'R$ ' + valor;
+    }
+
+    function abrirModalManual() {
+      document.getElementById('inputValor').value = '';
+      document.getElementById('modalManual').style.display = 'flex';
+      setTimeout(() => document.getElementById('inputValor').focus(), 100);
+    }
+
+    function fecharModalManual() {
+      document.getElementById('modalManual').style.display = 'none';
+    }
+
+    async function abrirCameraDireta() {
+      const chaves = obterChavesIA();
+      if (chaves.length === 0) return alert("Adicione ao menos uma chave de API para continuar.");
+
+      lanternaLigada = false;
+      document.getElementById('btnTorch').style.display = 'none';
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { exact: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        }).catch(() => navigator.mediaDevices.getUserMedia({ video: true }));
+
+        activeStream = stream;
+        trackVideo = stream.getVideoTracks()[0];
+
+        if (trackVideo && trackVideo.getCapabilities) {
+          const caps = trackVideo.getCapabilities();
+          if (caps.torch) document.getElementById('btnTorch').style.display = 'block';
         }
 
-        function renderizarLista() {
-            const listEl = document.getElementById('itemsList');
-            const totalEl = document.getElementById('totalItems');
-            listEl.innerHTML = '';
-            
-            totalEl.textContent = `${lancamentos.length} item${lancamentos.length !== 1 ? 's' : ''}`;
+        document.getElementById('videoElement').srcObject = stream;
+        document.getElementById('modalCamera').style.display = 'flex';
+      } catch (err) {
+        alert("Erro ao acessar a câmera.");
+      }
+    }
 
-            lancamentos.forEach((item) => {
-                const card = document.createElement('div');
-                card.className = 'item-card';
-                card.innerHTML = `
-                    <div class="item-info">
-                        <span class="item-title">${escapeHtml(item.descricao)}</span>
-                        <span class="item-date">${item.data}</span>
-                    </div>
-                    <span class="item-val">R$ ${parseFloat(item.valor).toFixed(2).replace('.', ',')}</span>
-                `;
-                listEl.appendChild(card);
-            });
-        }
+    async function alternarLanterna() {
+      if (!trackVideo) return;
+      lanternaLigada = !lanternaLigada;
+      try {
+        await trackVideo.applyConstraints({ advanced: [{ torch: lanternaLigada }] });
+        document.getElementById('btnTorch').innerText = lanternaLigada ? "🔦 Desligar" : "🔦 Lanterna";
+      } catch (e) {}
+    }
 
-        function escapeHtml(text) {
-            return text.replace(/[&<>"']/g, (m) => ({
-                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
-            })[m]);
-        }
+    function fecharCameraDireta() {
+      if (activeStream) {
+        activeStream.getTracks().forEach(track => track.stop());
+        activeStream = null;
+        trackVideo = null;
+      }
+      document.getElementById('modalCamera').style.display = 'none';
+    }
 
-        function abrirModalManual() {
-            document.getElementById('descManual').value = '';
-            document.getElementById('valManual').value = '';
-            document.getElementById('modalManual').style.display = 'flex';
-        }
+    async function capturarFotoEReconhecer() {
+      const video = document.getElementById('videoElement');
+      const canvas = document.getElementById('canvasAux');
+      const ctx = canvas.getContext('2d');
 
-        function fecharModal(id) {
-            document.getElementById(id).style.display = 'none';
-        }
+      const MAX_LADO = 800;
+      let width = video.videoWidth || 800;
+      let height = video.videoHeight || 600;
 
-        function salvarManual() {
-            const desc = document.getElementById('descManual').value.trim();
-            const val = parseFloat(document.getElementById('valManual').value);
+      if (width > height) {
+        if (width > MAX_LADO) { height *= MAX_LADO / width; width = MAX_LADO; }
+      } else {
+        if (height > MAX_LADO) { width *= MAX_LADO / height; height = MAX_LADO; }
+      }
 
-            if (!desc || isNaN(val)) {
-                alert('Por favor, preencha a descrição e um valor válido.');
-                return;
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(video, 0, 0, width, height);
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.50);
+      const base64Limpo = dataUrl.split(',')[1];
+
+      fecharCameraDireta();
+      await enviarParaIA(base64Limpo);
+    }
+
+    async function enviarParaIA(base64Limpo) {
+      const chaves = obterChavesIA();
+      const status = document.getElementById('status');
+      status.style.display = 'block';
+      status.innerText = "⚡ Enviando e lendo...";
+
+      const promptIA = `Analise o comprovante e retorne APENAS um JSON no seguinte formato exato: {"valor": 00.00, "tipo": "TIPO"}. O tipo deve ser DÉBITO, CRÉDITO, PIX ou VOUCHER.`;
+
+      let sucesso = false;
+      let ultimoErro = "";
+
+      for (let i = 0; i < chaves.length; i++) {
+        let key = chaves[i];
+        try {
+          // Utilizando o modelo gemini-2.5-flash na v1beta
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
+          
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { text: promptIA },
+                  { inline_data: { mime_type: "image/jpeg", data: base64Limpo } }
+                ]
+              }]
+            })
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.candidates && data.candidates[0].content.parts[0].text) {
+            let texto = data.candidates[0].content.parts[0].text.replace(/```json/g, '').replace(/```/g, '').trim();
+            const jsonMatch = texto.match(/\{[\s\S]*\}/);
+
+            if (jsonMatch) {
+              const res = JSON.parse(jsonMatch[0]);
+              const valorNum = parseFloat(res.valor);
+              let tipoPag = (res.tipo || 'CRÉDITO').toUpperCase();
+
+              if (!['DÉBITO', 'CRÉDITO', 'PIX', 'VOUCHER'].includes(tipoPag)) tipoPag = 'CRÉDITO';
+
+              if (!isNaN(valorNum) && valorNum > 0) {
+                lancamentos.push({
+                  id: Date.now(),
+                  tipo: tipoPag,
+                  valor: valorNum,
+                  hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                });
+                if (navigator.vibrate) navigator.vibrate(120);
+                salvarEAtualizar();
+                sucesso = true;
+                break;
+              }
             }
-
-            const novoItem = {
-                descricao: desc,
-                valor: val,
-                data: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})
-            };
-
-            lancamentos.unshift(novoItem);
-            salvarLocalStorage();
-            fecharModal('modalManual');
-        }
-
-        function abrirModalChaves() {
-            carregarChavesInputs();
-            document.getElementById('modalChaves').style.display = 'flex';
-        }
-
-        function carregarChavesInputs() {
-            document.getElementById('key1').value = chavesAPI[0] || '';
-            document.getElementById('key2').value = chavesAPI[1] || '';
-            document.getElementById('key3').value = chavesAPI[2] || '';
-        }
-
-        function salvarChaves() {
-            chavesAPI = [
-                document.getElementById('key1').value.trim(),
-                document.getElementById('key2').value.trim(),
-                document.getElementById('key3').value.trim()
-            ];
-            localStorage.setItem('recibobox_chaves', JSON.stringify(chavesAPI));
-            fecharModal('modalChaves');
-            alert('Chaves salvas com sucesso!');
-        }
-
-        function zerarCaixa() {
-            if (confirm('Tem certeza de que deseja apagar todos os lançamentos?')) {
-                lancamentos = [];
-                salvarLocalStorage();
+          } else {
+            if (data.error) {
+              ultimoErro = `Chave ${i+1}: ${data.error.message || data.error.status}`;
             }
+          }
+        } catch (err) {
+          ultimoErro = `Erro de conexao na tentativa ${i+1}`;
         }
+      }
 
-        function setStatus(msg) {
-            document.getElementById('statusMsg').textContent = msg;
-        }
+      if (!sucesso) {
+        alert(`Falha na leitura automática.\nDetalhe: ${ultimoErro || "Verifique suas chaves de API."}`);
+      }
 
-        async function processarImagem(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+      status.style.display = 'none';
+    }
 
-            const chavesValidas = chavesAPI.filter(k => k && k.trim() !== '');
-            if (chavesValidas.length === 0) {
-                alert('Por favor, cadastre ao menos uma chave de API nas configurações.');
-                abrirModalChaves();
-                return;
-            }
+    function salvarManual() {
+      const valorStr = document.getElementById('inputValor').value;
+      if (!valorStr) return alert('Digite um valor!');
 
-            setStatus('⚡ Enviando e lendo...');
+      const valorNum = parseFloat(valorStr.replace('R$', '').replace(/\./g, '').replace(',', '.').trim());
+      if (isNaN(valorNum) || valorNum <= 0) return alert('Valor inválido!');
 
-            try {
-                const base64Data = await convertBase64(file);
-                const resultJSON = await enviarParaIA(base64Data, file.type);
-                
-                if (resultJSON && resultJSON.descricao && !isNaN(resultJSON.valor)) {
-                    const novoItem = {
-                        descricao: resultJSON.descricao,
-                        valor: parseFloat(resultJSON.valor),
-                        data: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})
-                    };
-                    lancamentos.unshift(novoItem);
-                    salvarLocalStorage();
-                    setStatus('');
-                } else {
-                    throw new Error('Formato de resposta inválido da IA.');
-                }
-            } catch (err) {
-                setStatus('');
-                alert('Falha na leitura automática.\nDetalhe: ' + err.message);
-            } finally {
-                event.target.value = '';
-            }
-        }
+      lancamentos.push({
+        id: Date.now(),
+        tipo: document.getElementById('selectTipo').value,
+        valor: valorNum,
+        hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+      });
 
-        function convertBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => {
-                    const result = reader.result;
-                    const base64String = result.split(',')[1];
-                    resolve(base64String);
-                };
-                reader.onerror = error => reject(error);
-                reader.readAsDataURL(file);
-            });
-        }
+      salvarEAtualizar();
+      fecharModalManual();
+    }
 
-        async function enviarParaIA(base64Data, mimeType) {
-            const chavesValidas = chavesAPI.map(k => k.trim()).filter(k => k !== '');
-            let tentativas = 0;
-            let ultimoErro = '';
+    function removerItem(id) {
+      lancamentos = lancamentos.filter(item => item.id !== id);
+      salvarEAtualizar();
+    }
 
-            while (tentativas < chavesValidas.length) {
-                const keyIndex = (indiceChaveAtual + tentativas) % chavesValidas.length;
-                const key = chavesValidas[keyIndex];
-                
-                // Modelo correto para a v1beta do Google AI Studio
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
+    function salvarEAtualizar() {
+      localStorage.setItem('lancamentos', JSON.stringify(lancamentos));
+      atualizarTela();
+    }
 
-                const prompt = "Extraia o nome do estabelecimento/descrição principal e o valor total deste recibo ou comprovante. Responda ESTRITAMENTE em formato JSON puro, sem marcações markdown ou blocos de código: {\"descricao\": \"Nome do local\", \"valor\": 00.00}";
+    function atualizarTela() {
+      const lista = document.getElementById('listaLancamentos');
+      lista.innerHTML = '';
 
-                const bodyData = {
-                    contents: [{
-                        parts: [
-                            { text: prompt },
-                            {
-                                inline_data: {
-                                    mime_type: mimeType,
-                                    data: base64Data
-                                }
-                            }
-                        ]
-                    }]
-                };
+      let debito = 0, credito = 0, pix = 0, voucher = 0;
 
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(bodyData)
-                    });
+      lancamentos.forEach((item) => {
+        if (item.tipo === 'DÉBITO') debito += item.valor;
+        if (item.tipo === 'CRÉDITO') credito += item.valor;
+        if (item.tipo === 'PIX') pix += item.valor;
+        if (item.tipo === 'VOUCHER') voucher += item.valor;
 
-                    const data = await response.json();
+        const li = document.createElement('li');
+        li.className = 'list-item';
+        li.innerHTML = `
+          <div class="item-info">
+            <strong>${item.tipo}</strong>
+            <small>${item.hora}</small>
+          </div>
+          <div class="item-actions">
+            <strong>R$ ${item.valor.toFixed(2).replace('.', ',')}</strong>
+            <button class="btn-danger" onclick="removerItem(${item.id})">✕</button>
+          </div>
+        `;
+        lista.appendChild(li);
+      });
 
-                    if (!response.ok) {
-                        throw new Error(data.error?.message || `Erro HTTP ${response.status}`);
-                    }
+      document.getElementById('totalDebito').innerText = `R$ ${debito.toFixed(2).replace('.', ',')}`;
+      document.getElementById('totalCredito').innerText = `R$ ${credito.toFixed(2).replace('.', ',')}`;
+      document.getElementById('totalPix').innerText = `R$ ${pix.toFixed(2).replace('.', ',')}`;
+      document.getElementById('totalVoucher').innerText = `R$ ${voucher.toFixed(2).replace('.', ',')}`;
+      
+      const totalGeral = debito + credito + pix + voucher;
+      document.getElementById('totalGeral').innerText = `R$ ${totalGeral.toFixed(2).replace('.', ',')}`;
+      document.getElementById('qtdItens').innerText = `${lancamentos.length} ${lancamentos.length === 1 ? 'item' : 'itens'}`;
+    }
 
-                    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                    if (!rawText) {
-                        throw new Error('Resposta vazia da IA.');
-                    }
+    function limparTudo() {
+      if (lancamentos.length === 0) return;
+      if (confirm('Deseja apagar todos os lançamentos do caixa?')) {
+        lancamentos = [];
+        salvarEAtualizar();
+      }
+    }
 
-                    const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-                    const parsed = JSON.parse(cleanJson);
-
-                    indiceChaveAtual = (keyIndex + 1) % chavesValidas.length;
-                    return parsed;
-
-                } catch (err) {
-                    ultimoErro = `Chave ${keyIndex + 1}: ${err.message}`;
-                    tentativas++;
-                }
-            }
-
-            throw new Error(ultimoErro || 'Todas as chaves falharam.');
-        }
-    </script>
+    atualizarTela();
+  </script>
 </body>
 </html>
