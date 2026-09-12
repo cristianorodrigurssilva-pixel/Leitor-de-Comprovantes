@@ -273,62 +273,120 @@
 
       for (let i = 0; i < chaves.length; i++) {
         let key = chaves[i];
-        try {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
-          
-          const response = await fetch(url, {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              contents: [{
-                parts: [
+        
+        // Estrutura de fallback de modelos para garantir compatibilidade
+        const modelosParaTestar = ["gemini-2.5-flash", "gemini-2.0-flash"];
+
+        for (let m = 0; m < modelosParaTestar.length; m++) {
+          const modeloAtual = modelosParaTestar[m];
+
+          // 1. Tentar primeiro na nova Interactions API
+          try {
+            const responseInteractions = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'x-goog-api-key': key
+              },
+              body: JSON.stringify({
+                model: modeloAtual,
+                input: [
                   { text: promptIA },
                   { inlineData: { mimeType: "image/jpeg", data: base64Limpo } }
-                ]
-              }],
-              generationConfig: {
-                responseMimeType: "application/json"
+                ],
+                generationConfig: {
+                  responseMimeType: "application/json"
+                }
+              })
+            });
+
+            const dataInteractions = await responseInteractions.json();
+
+            if (responseInteractions.ok) {
+              let texto = dataInteractions.output_text || 
+                          (dataInteractions.candidates && dataInteractions.candidates[0].content.parts[0].text);
+              if (texto) {
+                texto = texto.trim();
+                const res = JSON.parse(texto);
+                const valorNum = parseFloat(res.valor);
+                let tipoPag = (res.tipo || 'CRÉDITO').toUpperCase();
+
+                if (!['DÉBITO', 'CRÉDITO', 'PIX', 'VOUCHER'].includes(tipoPag)) tipoPag = 'CRÉDITO';
+
+                if (!isNaN(valorNum) && valorNum > 0) {
+                  lancamentos.push({
+                    id: Date.now(),
+                    tipo: tipoPag,
+                    valor: valorNum,
+                    hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                  });
+                  if (navigator.vibrate) navigator.vibrate(120);
+                  salvarEAtualizar();
+                  sucesso = true;
+                  break;
+                }
               }
-            })
-          });
-
-          const data = await response.json();
-
-          if (response.ok && data.candidates && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
-            let texto = data.candidates[0].content.parts[0].text.trim();
-            const res = JSON.parse(texto);
-            
-            const valorNum = parseFloat(res.valor);
-            let tipoPag = (res.tipo || 'CRÉDITO').toUpperCase();
-
-            if (!['DÉBITO', 'CRÉDITO', 'PIX', 'VOUCHER'].includes(tipoPag)) tipoPag = 'CRÉDITO';
-
-            if (!isNaN(valorNum) && valorNum > 0) {
-              lancamentos.push({
-                id: Date.now(),
-                tipo: tipoPag,
-                valor: valorNum,
-                hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-              });
-              if (navigator.vibrate) navigator.vibrate(120);
-              salvarEAtualizar();
-              sucesso = true;
-              break;
             }
-          } else {
-            if (data.error) {
-              ultimoErro = `Erro (${data.error.code}): ${data.error.message}`;
-            }
+          } catch (e) {
+            // Se falhar a Interactions API, tenta o endpoint legado
           }
-        } catch (err) {
-          ultimoErro = `Erro de conexão na tentativa ${i+1}`;
+
+          if (sucesso) break;
+
+          // 2. Tentar no endpoint v1beta clássico como fallback
+          try {
+            const urlLegacy = `https://generativelanguage.googleapis.com/v1beta/models/${modeloAtual}:generateContent?key=${key}`;
+            const responseLegacy = await fetch(urlLegacy, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [
+                    { text: promptIA },
+                    { inlineData: { mimeType: "image/jpeg", data: base64Limpo } }
+                  ]
+                }],
+                generationConfig: { responseMimeType: "application/json" }
+              })
+            });
+
+            const dataLegacy = await responseLegacy.json();
+
+            if (responseLegacy.ok && dataLegacy.candidates && dataLegacy.candidates[0].content && dataLegacy.candidates[0].content.parts[0].text) {
+              let texto = dataLegacy.candidates[0].content.parts[0].text.trim();
+              const res = JSON.parse(texto);
+              const valorNum = parseFloat(res.valor);
+              let tipoPag = (res.tipo || 'CRÉDITO').toUpperCase();
+
+              if (!['DÉBITO', 'CRÉDITO', 'PIX', 'VOUCHER'].includes(tipoPag)) tipoPag = 'CRÉDITO';
+
+              if (!isNaN(valorNum) && valorNum > 0) {
+                lancamentos.push({
+                  id: Date.now(),
+                  tipo: tipoPag,
+                  valor: valorNum,
+                  hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                });
+                if (navigator.vibrate) navigator.vibrate(120);
+                salvarEAtualizar();
+                sucesso = true;
+                break;
+              }
+            } else if (dataLegacy.error) {
+              ultimoErro = `Erro (${dataLegacy.error.code}): ${dataLegacy.error.message}`;
+            }
+          } catch (err) {
+            ultimoErro = `Erro de conexão ao processar imagem.`;
+          }
+
+          if (sucesso) break;
         }
+
+        if (sucesso) break;
       }
 
       if (!sucesso) {
-        alert(`Falha no reconhecimento.\n${ultimoErro || "Verifique se a sua chave de API está ativa e correta."}`);
+        alert(`Falha no reconhecimento.\n${ultimoErro || "Verifique se a sua chave de API está ativa no Google AI Studio."}`);
       }
 
       status.style.display = 'none';
@@ -411,11 +469,3 @@
   </script>
 </body>
 </html>
-
-        
-      
-
-
-
-
-                        
