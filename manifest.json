@@ -1,0 +1,7 @@
+{
+  "name":"ReciboBox Pro","short_name":"ReciboBox",
+  "description":"Leitor de comprovantes e controle de lançamentos.",
+  "start_url":"./","scope":"./","display":"standalone","orientation":"portrait",
+  "background_color":"#f8fafc","theme_color":"#0f172a",
+  "icons":[{"src":"./icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
